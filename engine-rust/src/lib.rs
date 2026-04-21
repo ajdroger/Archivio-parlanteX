@@ -2,7 +2,10 @@
 ///
 /// Exposes modules for integration tests and potential library usage.
 
+pub mod chunker;
 pub mod clients;
 pub mod config;
 pub mod errors;
+pub mod models;
 pub mod providers;
+pub mod utils;

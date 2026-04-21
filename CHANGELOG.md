@@ -7,6 +7,40 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Fase 1.2 — Semantic Chunker + Contextual Retrieval (2026-04-21)
+- Chunk model (`src/models/chunk.rs`)
+  - Struct Chunk con UUID, metadata JSON, offsets, token count
+  - Support per contextual_text enrichment
+  - Helper methods: `embedding_text()`, `is_contextualized()`
+- Tokenizer wrapper (`src/utils/tokenizer.rs`)
+  - tiktoken-rs integration con cl100k_base encoding
+  - `count_tokens(text)` per conteggio accurato
+  - `split_by_token_limit(text, limit)` con preservazione word boundaries
+- Semantic chunker (`src/chunker/semantic.rs`)
+  - Split per Markdown headers (# ## ###)
+  - Split per clausole legali italiane (Art., Articolo, CAPO, Sezione)
+  - Split per frasi con regex Unicode-aware
+  - Overlap configurabile tra chunk consecutivi (default 15%)
+  - Metadata arricchita: section_header, clause_marker, is_clause_start
+  - Preservazione ordinamento logico (articoli numerati)
+  - Gestione casi edge: testo vuoto, paragrafo enorme, solo headers
+- Contextual Retrieval enricher (`src/chunker/contextual.rs`)
+  - Implementazione tecnica Anthropic per riduzione errori (-49%)
+  - Generazione summary documento se > 8000 tokens
+  - Arricchimento parallelo chunks con LLM (max 16 concurrent)
+  - Caching con DashMap per evitare ricalcoli
+  - Fallback graceful se LLM fallisce (chunk passa senza context)
+- Test completi (`tests/chunker_test.rs`)
+  - Test contratto italiano (~3000 parole) con articoli numerati
+  - Verifica chunk count, token limits, overlap, ordinamento logico
+  - Test edge cases: testo corto, vuoto, solo headers
+  - Test contextual enrichment (#[ignore], richiede Ollama)
+- Chunk demo CLI (`examples/chunk_demo.rs`)
+  - Tool interattivo per verifica manuale chunking
+  - Statistiche: count, avg/min/max tokens, clause markers
+  - Preview chunks con metadata
+- Dipendenze aggiunte: tiktoken-rs, regex, dashmap, chrono
+
 ### Fase 1.1 — Rust Engine Scaffolding (2026-04-21)
 - Configuration system con caricamento da environment (`src/config.rs`)
   - Supporto per Ollama (locale, zero-cost default)
