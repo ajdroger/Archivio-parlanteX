@@ -1,8 +1,12 @@
+mod chunker;
 mod clients;
 mod config;
 mod errors;
+mod models;
 mod providers;
+mod rag;
 mod routes;
+mod utils;
 
 use axum::{
     extract::State,
@@ -63,7 +67,7 @@ async fn main() {
     let app = Router::new()
         .route("/health", get(health_handler))
         .route("/ingest", post(routes::ingest::handle_ingest))
-        .route("/query", post(query_handler))
+        .route("/query", post(routes::query::handle_query))
         .route("/compare_contracts", post(compare_contracts_handler))
         .layer(CorsLayer::permissive()) // Dev only, configure properly in production
         .layer(TraceLayer::new_for_http())
@@ -104,20 +108,7 @@ async fn health_handler(State(state): State<AppState>) -> impl IntoResponse {
 }
 
 // Ingest handler now in routes::ingest module
-
-/// Query handler with RAG (Fase 1.3+)
-async fn query_handler(State(_state): State<AppState>) -> impl IntoResponse {
-    tracing::warn!("Query endpoint called but not yet implemented");
-
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(json!({
-            "error": "Query endpoint not yet implemented",
-            "code": "NOT_IMPLEMENTED",
-            "available_in": "Fase 1.3"
-        })),
-    )
-}
+// Query handler now in routes::query module
 
 /// Multi-contract comparison handler (Fase 1.5+)
 async fn compare_contracts_handler(State(_state): State<AppState>) -> impl IntoResponse {

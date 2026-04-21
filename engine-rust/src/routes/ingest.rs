@@ -6,9 +6,10 @@ use std::time::Instant;
 
 use crate::chunker::contextual::ContextualRetrievalEnricher;
 use crate::chunker::semantic::SemanticChunker;
-use crate::clients::qdrant::ChunkInsert;
+use crate::clients::qdrant::{ChunkInsert, SparseVector};
 use crate::errors::{AppError, Result};
 use crate::models::document::{IngestRequest, IngestResponse};
+use crate::utils::bm25::Bm25Vectorizer;
 
 /// Application state for routes
 #[derive(Clone)]
@@ -93,11 +94,14 @@ pub async fn handle_ingest(
         "Contextual enrichment completed"
     );
 
+    // Step 4.5: Generate BM25 sparse vectors
+    let sparse_vectors = generate_sparse_vectors(&chunks)?;
+
     // Step 5: Embedding generation
     let embeddings = generate_embeddings(&state, &chunks, llm).await?;
 
     // Step 6: Store in Qdrant
-    let chunks_indexed = store_in_qdrant(&state.config, &req, chunks, embeddings).await?;
+    let chunks_indexed = store_in_qdrant(&state.config, &req, chunks, embeddings, sparse_vectors).await?;
 
     // TODO: Step 7: Extract knowledge graph (Phase 1.4)
     let entities_extracted = 0;
@@ -153,6 +157,33 @@ fn validate_request(req: &IngestRequest) -> Result<()> {
     Ok(())
 }
 
+/// Generate BM25 sparse vectors for chunks
+fn generate_sparse_vectors(chunks: &[crate::models::chunk::Chunk]) -> Result<Vec<SparseVector>> {
+    tracing::debug!(chunks_count = chunks.len(), "Generating BM25 sparse vectors");
+
+    let mut vectorizer = Bm25Vectorizer::new();
+
+    // Build vocabulary from all chunks
+    let texts: Vec<String> = chunks.iter().map(|c| c.embedding_text().to_string()).collect();
+    vectorizer.build_vocabulary(&texts);
+
+    // Generate sparse vector for each chunk
+    let sparse_vectors: Result<Vec<_>> = texts
+        .iter()
+        .map(|text| vectorizer.vectorize(text))
+        .collect();
+
+    let sparse_vectors = sparse_vectors?;
+
+    tracing::info!(
+        vocab_size = vectorizer.vocab_size(),
+        vectors_generated = sparse_vectors.len(),
+        "BM25 sparse vectors generated"
+    );
+
+    Ok(sparse_vectors)
+}
+
 /// Generate embeddings for chunks
 async fn generate_embeddings(
     state: &AppState,
@@ -196,12 +227,14 @@ async fn store_in_qdrant(
     req: &IngestRequest,
     chunks: Vec<crate::models::chunk::Chunk>,
     embeddings: Vec<Vec<f32>>,
+    sparse_vectors: Vec<SparseVector>,
 ) -> Result<usize> {
-    if chunks.len() != embeddings.len() {
+    if chunks.len() != embeddings.len() || chunks.len() != sparse_vectors.len() {
         return Err(AppError::Internal(anyhow::anyhow!(
-            "Chunks count ({}) != embeddings count ({})",
+            "Chunks count ({}) != embeddings count ({}) or sparse vectors count ({})",
             chunks.len(),
-            embeddings.len()
+            embeddings.len(),
+            sparse_vectors.len()
         )));
     }
 
@@ -221,13 +254,14 @@ async fn store_in_qdrant(
     let chunk_inserts: Vec<ChunkInsert> = chunks
         .into_iter()
         .zip(embeddings)
-        .map(|(chunk, embedding)| ChunkInsert {
+        .zip(sparse_vectors)
+        .map(|((chunk, embedding), sparse)| ChunkInsert {
             id: chunk.id.to_string(),
             doc_id: req.doc_id.clone(),
             chunk_index: chunk.chunk_idx,
             text: chunk.text,
             dense_embedding: embedding,
-            sparse_vector: None, // TODO: BM25 sparse vectors in Phase 1.4
+            sparse_vector: Some(sparse),
             metadata: Some(chunk.metadata),
         })
         .collect();
