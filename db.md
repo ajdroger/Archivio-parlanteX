@@ -1,0 +1,1 @@
+su phpmyadmin ho creato un database con il nome archivio_parlante_x devi fare riferimento a questo database!

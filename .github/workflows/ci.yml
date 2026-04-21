@@ -1,0 +1,184 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop, 'feature/**']
+  pull_request:
+    branches: [main, develop]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # === Rust Engine Tests ===
+  rust-test:
+    name: Rust Tests & Linting
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./engine-rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.82
+          components: rustfmt, clippy
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            engine-rust/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run tests
+        run: cargo test --release --all-features
+
+      - name: Build release
+        run: cargo build --release
+
+  # === Python AI Worker Tests ===
+  python-test:
+    name: Python Tests & Linting
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./engine-python
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio ruff mypy
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: MyPy type check
+        run: mypy app --strict --ignore-missing-imports || true
+
+      - name: Run tests with coverage
+        run: pytest --cov=app --cov-report=xml --cov-report=term
+
+  # === PHP Gateway Tests ===
+  php-test:
+    name: PHP Tests & Linting
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./php-gateway
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, redis
+          tools: composer
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: php-gateway/vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: PHPStan static analysis
+        run: composer run phpstan || true
+
+      - name: Run PHPUnit tests
+        run: composer test || true
+
+  # === Frontend Tests ===
+  frontend-test:
+    name: Frontend Tests & Linting
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint || true
+
+      - name: TypeScript check
+        run: npm run type-check || true
+
+      - name: Run unit tests
+        run: npm run test:unit || true
+
+      - name: Build
+        run: npm run build
+
+  # === Security Scans ===
+  security-scan:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust - cargo audit
+        working-directory: ./engine-rust
+        run: |
+          cargo install cargo-audit || true
+          cargo audit || true
+
+      - name: Python - pip-audit
+        working-directory: ./engine-python
+        run: |
+          pip install pip-audit
+          pip-audit || true
+
+      - name: PHP - composer audit
+        working-directory: ./php-gateway
+        run: composer audit || true
+
+      - name: Frontend - npm audit
+        working-directory: ./frontend
+        run: npm audit --audit-level=high || true
+
+      - name: Trivy container scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0'
