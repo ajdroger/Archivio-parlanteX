@@ -33,16 +33,31 @@ use routes::ingest::AppState;
 
 #[tokio::main]
 async fn main() {
-    // Initialize tracing
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,archivio_parlante_rust_engine=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    // Initialize structured JSON logging
+    let log_format = std::env::var("LOG_FORMAT").unwrap_or_else(|_| "pretty".to_string());
+
+    if log_format == "json" {
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "info,archivio_parlante_rust_engine=debug".into()),
+            )
+            .with(tracing_subscriber::fmt::layer().json())
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "info,archivio_parlante_rust_engine=debug".into()),
+            )
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    }
 
     tracing::info!("🦀 Archivio Parlante Rust Engine starting...");
+
+    // Initialize Prometheus metrics
+    routes::metrics::init_metrics();
 
     // Load configuration
     let config = Config::from_env().expect("Failed to load configuration");
@@ -68,6 +83,7 @@ async fn main() {
     // Build router
     let app = Router::new()
         .route("/health", get(health_handler))
+        .route("/metrics", get(routes::metrics::metrics_handler))
         .route("/ingest", post(routes::ingest::handle_ingest))
         .route("/query", post(routes::query::handle_query))
         .route(
