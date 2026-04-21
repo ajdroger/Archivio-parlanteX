@@ -18,6 +18,7 @@ use axum::{
     Json, Router,
 };
 use serde_json::json;
+use utoipa_swagger_ui::SwaggerUi;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::{
@@ -80,10 +81,15 @@ async fn main() {
         python_worker: Arc::new(python_worker),
     };
 
+    // Build API documentation
+    let openapi_spec = routes::docs::get_openapi_spec();
+
     // Build router
     let app = Router::new()
         .route("/health", get(health_handler))
         .route("/metrics", get(routes::metrics::metrics_handler))
+        .route("/openapi.json", get(move || async { openapi_spec }))
+        .merge(SwaggerUi::new("/docs").url("/openapi.json", routes::docs::ApiDoc::openapi()))
         .route("/ingest", post(routes::ingest::handle_ingest))
         .route("/query", post(routes::query::handle_query))
         .route(
@@ -99,7 +105,7 @@ async fn main() {
         .route("/kb/:kb_id/graph", get(routes::kb::get_graph))
         .route("/kb/:kb_id/stats", get(routes::kb::get_stats))
         .route("/admin/reindex/:kb_id", post(routes::kb::reindex_kb))
-        // Security middleware (applied to all routes except /health)
+        // Security middleware (applied to all routes except /health, /metrics, /docs)
         .layer(axum_middleware::from_fn(middleware::rate_limit::rate_limit_middleware))
         .layer(axum_middleware::from_fn(middleware::internal_auth::internal_auth_middleware))
         // Cross-cutting middleware
@@ -114,13 +120,52 @@ async fn main() {
         .expect("Invalid listen address");
     tracing::info!("🚀 Listening on {}", addr);
 
-    // Start server
+    // Start server with graceful shutdown
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .expect("Failed to bind address");
+
+    tracing::info!("Server ready, press Ctrl+C to shutdown gracefully");
+
     axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .expect("Server error");
+
+    tracing::info!("Server shutdown complete");
+}
+
+/// Graceful shutdown signal handler
+///
+/// Waits for SIGTERM or Ctrl+C, then allows in-flight requests to complete
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("Failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            tracing::info!("Received Ctrl+C, initiating graceful shutdown");
+        },
+        _ = terminate => {
+            tracing::info!("Received SIGTERM, initiating graceful shutdown");
+        },
+    }
+
+    tracing::info!("Shutdown signal received, waiting for in-flight requests to complete...");
 }
 
 /// Health check endpoint

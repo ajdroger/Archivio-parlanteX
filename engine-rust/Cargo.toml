@@ -66,6 +66,10 @@ tantivy = "0.22"
 prometheus = "0.13"
 lazy_static = "1.4"
 
+# OpenAPI documentation
+utoipa = { version = "5", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "8", features = ["axum"] }
+
 [profile.release]
 opt-level = 3
 lto = true
