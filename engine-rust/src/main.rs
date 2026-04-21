@@ -12,7 +12,7 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use serde_json::json;
@@ -72,6 +72,15 @@ async fn main() {
             "/compare_contracts",
             post(routes::compare::handle_compare_contracts),
         )
+        // KB management endpoints
+        .route("/kb/:kb_id/documents", get(routes::kb::list_documents))
+        .route(
+            "/kb/:kb_id/documents/:doc_id",
+            delete(routes::kb::delete_document),
+        )
+        .route("/kb/:kb_id/graph", get(routes::kb::get_graph))
+        .route("/kb/:kb_id/stats", get(routes::kb::get_stats))
+        .route("/admin/reindex/:kb_id", post(routes::kb::reindex_kb))
         .layer(CorsLayer::permissive()) // Dev only, configure properly in production
         .layer(TraceLayer::new_for_http())
         .with_state(state);
