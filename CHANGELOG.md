@@ -7,6 +7,36 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Fase 1.3 — Ingestion Pipeline End-to-End (2026-04-21)
+- Document models (`src/models/document.rs`)
+  - Document, IngestRequest, IngestResponse structs
+  - Timestamp auto-generation with chrono::Utc
+- Ingest route handler (`src/routes/ingest.rs`)
+  - Complete pipeline: validate → parse → chunk → contextualize → embed → store
+  - AppState with config + llm_registry + python_worker
+  - Validation: doc_id/kb_id non-empty, MIME type whitelist (PDF/TXT/DOC/DOCX)
+  - Python worker integration for document parsing
+  - Semantic chunking with configurable params
+  - Contextual enrichment with parallel LLM calls
+  - Embedding generation in batches (max_concurrent_embeddings)
+  - Qdrant storage with per-KB collections (ap_kb_{kb_id})
+  - Error handling graceful, structured logging
+  - Processing time tracking
+- Qdrant integration
+  - Per-KB collection creation (dense 768 cosine + sparse BM25 ready)
+  - ChunkInsert with embeddings and metadata
+  - Batch upsert operation
+- Main.rs updates
+  - AppState from routes::ingest module
+  - POST /ingest → handle_ingest (501 placeholder removed)
+  - Health endpoint enhanced with provider list
+- E2E ingestion tests (`tests/ingestion_e2e.rs`)
+  - Full flow test with sample contract
+  - Qdrant verification (chunks exist, correct doc_id)
+  - Validation error tests (empty doc_id, invalid MIME)
+  - Marked #[ignore], requires stack up
+- Documentation: FASE_1_3_VERIFICATION.md with pipeline diagram
+
 ### Fase 1.2 — Semantic Chunker + Contextual Retrieval (2026-04-21)
 - Chunk model (`src/models/chunk.rs`)
   - Struct Chunk con UUID, metadata JSON, offsets, token count

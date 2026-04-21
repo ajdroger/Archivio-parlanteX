@@ -2,6 +2,7 @@ mod clients;
 mod config;
 mod errors;
 mod providers;
+mod routes;
 
 use axum::{
     extract::State,
@@ -19,18 +20,10 @@ use tower_http::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use clients::{python_worker::PythonWorkerClient, qdrant::QdrantWrapper};
+use clients::python_worker::PythonWorkerClient;
 use config::Config;
 use providers::registry::LlmRegistry;
-
-/// Application shared state
-#[derive(Clone)]
-struct AppState {
-    config: Arc<Config>,
-    llm_registry: Arc<LlmRegistry>,
-    python_worker: Arc<PythonWorkerClient>,
-    // Qdrant wrapper will be created per-KB collection
-}
+use routes::ingest::AppState;
 
 #[tokio::main]
 async fn main() {
@@ -69,7 +62,7 @@ async fn main() {
     // Build router
     let app = Router::new()
         .route("/health", get(health_handler))
-        .route("/ingest", post(ingest_handler))
+        .route("/ingest", post(routes::ingest::handle_ingest))
         .route("/query", post(query_handler))
         .route("/compare_contracts", post(compare_contracts_handler))
         .layer(CorsLayer::permissive()) // Dev only, configure properly in production
@@ -110,19 +103,7 @@ async fn health_handler(State(state): State<AppState>) -> impl IntoResponse {
     )
 }
 
-/// Document ingest handler (Fase 1.2+)
-async fn ingest_handler(State(_state): State<AppState>) -> impl IntoResponse {
-    tracing::warn!("Ingest endpoint called but not yet implemented");
-
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(json!({
-            "error": "Ingest endpoint not yet implemented",
-            "code": "NOT_IMPLEMENTED",
-            "available_in": "Fase 1.2"
-        })),
-    )
-}
+// Ingest handler now in routes::ingest module
 
 /// Query handler with RAG (Fase 1.3+)
 async fn query_handler(State(_state): State<AppState>) -> impl IntoResponse {
