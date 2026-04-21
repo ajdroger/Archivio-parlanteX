@@ -6,11 +6,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies (for PDF/OCR in Fase 2)
+# Install system dependencies for PDF parsing and OCR
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
-    ca-certificates && \
+    ca-certificates \
+    tesseract-ocr \
+    tesseract-ocr-ita \
+    poppler-utils \
+    libmagic1 \
+    libgl1 \
+    libglib2.0-0 && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
