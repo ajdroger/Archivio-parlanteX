@@ -4,6 +4,14 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.82"
 
+[[bin]]
+name = "archivio-parlante-rust-engine"
+path = "src/main.rs"
+
+[lib]
+name = "archivio_parlante_rust_engine"
+path = "src/lib.rs"
+
 [dependencies]
 # Web framework
 axum = "0.7"
@@ -13,6 +21,7 @@ tower-http = { version = "0.6", features = ["trace", "cors", "compression-gzip"]
 # Async runtime
 tokio = { version = "1.40", features = ["full"] }
 futures = "0.3"
+async-trait = "0.1"
 
 # HTTP client
 reqwest = { version = "0.12", features = ["json", "stream"] }

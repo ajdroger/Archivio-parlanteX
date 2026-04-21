@@ -7,6 +7,46 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Fase 1.1 — Rust Engine Scaffolding (2026-04-21)
+- Configuration system con caricamento da environment (`src/config.rs`)
+  - Supporto per Ollama (locale, zero-cost default)
+  - Cloud provider API keys opt-in (Anthropic, Google, OpenAI, DeepSeek)
+  - Budget guard (`daily_cost_budget_eur`)
+  - Parametri chunking e retrieval configurabili
+- Sistema errori strutturato (`src/errors.rs`)
+  - Enum `AppError` con mapping HTTP status codes
+  - Integrazione Axum `IntoResponse`
+  - JSON error responses con structured logging
+- Multi-provider LLM architecture (`src/providers/`)
+  - Trait `LlmProvider` con `async_trait`
+  - `OllamaProvider` implementation con rate limiting (Semaphore)
+  - `LlmRegistry` per runtime provider switching
+  - Tipi condivisi: `ChatRequest`, `ChatResponse`, `Message`, `Usage`
+- Client Qdrant wrapper (`src/clients/qdrant.rs`)
+  - Hybrid search ready (dense cosine + sparse BM25)
+  - Collection management (ensure_collection, upsert_chunks)
+  - Search methods: `search_dense`, `search_sparse`
+  - Delete by doc_id
+- Client Python AI Worker (`src/clients/python_worker.rs`)
+  - Document parsing endpoint
+  - Contextual retrieval endpoint
+  - BGE reranker endpoint
+  - Knowledge graph extraction endpoint
+- Router Axum con AppState (`src/main.rs`)
+  - GET /health (operational con provider list)
+  - POST /ingest (501 placeholder, Fase 1.2)
+  - POST /query (501 placeholder, Fase 1.3)
+  - POST /compare_contracts (501 placeholder, Fase 1.5)
+- Integration test Ollama (`tests/ollama_smoke.rs`)
+  - Connectivity check
+  - Chat completion test
+  - Embeddings test
+- Library exports (`src/lib.rs`) per integration tests
+- Documentazione verifica (`docs/FASE_1_1_VERIFICATION.md`)
+- Security audit OWASP ASVS L2 (`docs/SECURITY_AUDIT_FASE_1_1.md`)
+  - 1 issue medio identificato (Config Debug redaction)
+  - Zero vulnerabilità critiche/alte
+
 ### Fase 0 — Setup Infrastruttura Docker Compose (2026-04-21)
 - Docker Compose orchestration con 7 servizi (PHP + Rust + Python + Qdrant + Ollama + MySQL + Redis)
 - Scaffolding Rust engine (Axum) con GET /health endpoint
