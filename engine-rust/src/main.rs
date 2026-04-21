@@ -68,7 +68,10 @@ async fn main() {
         .route("/health", get(health_handler))
         .route("/ingest", post(routes::ingest::handle_ingest))
         .route("/query", post(routes::query::handle_query))
-        .route("/compare_contracts", post(compare_contracts_handler))
+        .route(
+            "/compare_contracts",
+            post(routes::compare::handle_compare_contracts),
+        )
         .layer(CorsLayer::permissive()) // Dev only, configure properly in production
         .layer(TraceLayer::new_for_http())
         .with_state(state);
@@ -107,19 +110,7 @@ async fn health_handler(State(state): State<AppState>) -> impl IntoResponse {
     )
 }
 
-// Ingest handler now in routes::ingest module
-// Query handler now in routes::query module
-
-/// Multi-contract comparison handler (Fase 1.5+)
-async fn compare_contracts_handler(State(_state): State<AppState>) -> impl IntoResponse {
-    tracing::warn!("Compare contracts endpoint called but not yet implemented");
-
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(json!({
-            "error": "Compare contracts endpoint not yet implemented",
-            "code": "NOT_IMPLEMENTED",
-            "available_in": "Fase 1.5"
-        })),
-    )
-}
+// Route handlers now in routes:: modules:
+// - routes::ingest::handle_ingest
+// - routes::query::handle_query
+// - routes::compare::handle_compare_contracts

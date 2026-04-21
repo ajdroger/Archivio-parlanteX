@@ -7,8 +7,10 @@ use crate::clients::qdrant::{QdrantWrapper, ScoredChunk, SparseVector};
 use crate::errors::Result;
 use crate::providers::LlmProvider;
 use crate::utils::bm25::Bm25Vectorizer;
+use qdrant_client::qdrant::Filter;
 
 /// Hybrid searcher combining dense + sparse retrieval
+#[derive(Clone)]
 pub struct HybridSearcher {
     /// Qdrant client
     qdrant: Arc<QdrantWrapper>,
@@ -53,6 +55,24 @@ impl HybridSearcher {
     /// # Returns
     /// Fused and ranked results
     pub async fn search(&self, query: &str, top_k: usize) -> Result<Vec<ScoredChunk>> {
+        self.search_with_filter(query, top_k, None).await
+    }
+
+    /// Perform hybrid search with optional filter
+    ///
+    /// # Arguments
+    /// * `query` - Search query text
+    /// * `top_k` - Number of final results after fusion
+    /// * `filter` - Optional Qdrant filter (e.g., filter by doc_id)
+    ///
+    /// # Returns
+    /// Fused and ranked results
+    pub async fn search_with_filter(
+        &self,
+        query: &str,
+        top_k: usize,
+        filter: Option<Filter>,
+    ) -> Result<Vec<ScoredChunk>> {
         tracing::debug!(query = %query, "Starting hybrid search");
 
         // Step 1: Generate query embedding (dense)
@@ -67,7 +87,7 @@ impl HybridSearcher {
         // Step 3: Dense search
         let dense_results = self
             .qdrant
-            .search_dense(query_embedding, self.top_k_dense, None)
+            .search_dense(query_embedding, self.top_k_dense, filter.clone())
             .await?;
 
         tracing::debug!(dense_count = dense_results.len(), "Dense search completed");
@@ -75,7 +95,7 @@ impl HybridSearcher {
         // Step 4: Sparse search
         let sparse_results = self
             .qdrant
-            .search_sparse(query_sparse, self.top_k_sparse, None)
+            .search_sparse(query_sparse, self.top_k_sparse, filter)
             .await?;
 
         tracing::debug!(sparse_count = sparse_results.len(), "Sparse search completed");
