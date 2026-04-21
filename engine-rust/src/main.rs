@@ -2,6 +2,7 @@ mod chunker;
 mod clients;
 mod config;
 mod errors;
+mod middleware;
 mod models;
 mod providers;
 mod rag;
@@ -11,6 +12,7 @@ mod utils;
 use axum::{
     extract::State,
     http::StatusCode,
+    middleware as axum_middleware,
     response::IntoResponse,
     routing::{delete, get, post},
     Json, Router,
@@ -81,6 +83,10 @@ async fn main() {
         .route("/kb/:kb_id/graph", get(routes::kb::get_graph))
         .route("/kb/:kb_id/stats", get(routes::kb::get_stats))
         .route("/admin/reindex/:kb_id", post(routes::kb::reindex_kb))
+        // Security middleware (applied to all routes except /health)
+        .layer(axum_middleware::from_fn(middleware::rate_limit::rate_limit_middleware))
+        .layer(axum_middleware::from_fn(middleware::internal_auth::internal_auth_middleware))
+        // Cross-cutting middleware
         .layer(CorsLayer::permissive()) // Dev only, configure properly in production
         .layer(TraceLayer::new_for_http())
         .with_state(state);
