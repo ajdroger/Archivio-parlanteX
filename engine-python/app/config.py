@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     contextualization_batch_size: int = 5  # Parallel context generation
     contextualization_max_doc_length: int = 8000  # Max chars for document excerpt
 
+    # Knowledge Graph (Fase 2.4)
+    kg_spacy_model: str = "it_core_news_lg"  # Italian NER model
+    kg_max_text_length: int = 50000  # Max chars for KG extraction
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

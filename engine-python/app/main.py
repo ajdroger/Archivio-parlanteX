@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.routers import contextualize, parse, rerank
+from app.routers import contextualize, extract_kg, parse, rerank
 
 # Configure structured logging
 structlog.configure(
@@ -66,6 +66,7 @@ app.add_middleware(
 app.include_router(parse.router)
 app.include_router(rerank.router)
 app.include_router(contextualize.router)
+app.include_router(extract_kg.router)
 
 
 # Exception handlers
@@ -120,7 +121,7 @@ async def root():
             "POST /parse",
             "POST /rerank",
             "POST /contextualize",
-            "POST /extract_kg (TODO: Fase 2.4)",
+            "POST /extract_kg",
         ],
     }
 

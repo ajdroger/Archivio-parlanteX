@@ -42,10 +42,14 @@ pytest-cov==6.0.0
 FlagEmbedding==1.3.0
 torch==2.5.0
 
+# === Fase 2.4: Knowledge Graph ===
+spacy==3.8.0
+# Note: Install Italian model with: python -m spacy download it_core_news_lg
+networkx==3.4.2
+
 # === Future phases (uncomment when needed) ===
 
-# NER & Knowledge Graph
-# spacy==3.8.0
+# Advanced NER (if needed later)
 # transformers==4.46.0
 
 # Database
