@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.routers import parse
+from app.routers import parse, rerank
 
 # Configure structured logging
 structlog.configure(
@@ -30,7 +30,17 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown"""
     logger.info("🐍 Python AI Worker starting...")
-    # TODO Fase 2: Initialize ML models (BGE reranker, spaCy NER, etc.)
+
+    # Initialize BGE reranker (lazy loading, but warm up on startup)
+    try:
+        from app.services.reranker import get_reranker
+        reranker = get_reranker()
+        reranker.initialize()
+        logger.info("✅ BGE reranker initialized")
+    except Exception as e:
+        logger.warning("reranker_init_skipped", error=str(e))
+
+    # TODO Fase 2.3+: Initialize spaCy NER, contextual retrieval, etc.
     yield
     logger.info("Python AI Worker shutting down...")
 
@@ -54,6 +64,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(parse.router)
+app.include_router(rerank.router)
 
 
 # Exception handlers
@@ -106,7 +117,7 @@ async def root():
         "endpoints": [
             "GET /health",
             "POST /parse",
-            "POST /rerank (TODO: Fase 2.2)",
+            "POST /rerank",
             "POST /contextualize (TODO: Fase 2.3)",
             "POST /extract_kg (TODO: Fase 2.4)",
         ],
