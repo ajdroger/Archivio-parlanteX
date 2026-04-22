@@ -144,3 +144,40 @@ class ContextualizeResponse(BaseModel):
     doc_id: str
     chunks: List[ContextualizedChunk]
     processing_ms: int
+
+
+# === Knowledge Graph schemas (Fase 2.4) ===
+
+
+class ExtractKgRequest(BaseModel):
+    """Request to extract knowledge graph"""
+
+    doc_id: str = Field(..., min_length=1, description="Document ID")
+    text: str = Field(..., min_length=1, description="Full document text")
+
+
+class KgNode(BaseModel):
+    """Knowledge graph node (entity)"""
+
+    id: str = Field(..., description="Unique node ID")
+    entity_type: str = Field(..., description="Entity type: PARTIES | DATES | AMOUNTS | CLAUSES | JURISDICTIONS | PENALTIES")
+    name: str = Field(..., description="Entity name/text")
+    properties: dict = Field(default_factory=dict, description="Additional properties (start_char, confidence, etc.)")
+
+
+class KgEdge(BaseModel):
+    """Knowledge graph edge (relation)"""
+
+    source_id: str = Field(..., description="Source node ID")
+    target_id: str = Field(..., description="Target node ID")
+    relation_type: str = Field(..., description="Relation type (e.g., CONTRATTO_CON, PAGA, DEFINISCE_IMPORTO)")
+    properties: dict = Field(default_factory=dict, description="Additional properties (context, confidence, etc.)")
+
+
+class ExtractKgResponse(BaseModel):
+    """Response from KG extraction"""
+
+    doc_id: str
+    nodes: List[KgNode]
+    edges: List[KgEdge]
+    processing_ms: int
