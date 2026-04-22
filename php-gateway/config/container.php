@@ -72,6 +72,24 @@ return function (): Container {
         );
     });
 
+    // === Fase 3.3: Audit Logging ===
+
+    // Audit Log Repository
+    $container->set(\ArchivioParlante\Repository\AuditLogRepository::class, function ($c) {
+        return new \ArchivioParlante\Repository\AuditLogRepository(
+            $c->get(\PDO::class),
+            $c->get(LoggerInterface::class)
+        );
+    });
+
+    // Audit Logger Service
+    $container->set(\ArchivioParlante\Service\AuditLogger::class, function ($c) {
+        return new \ArchivioParlante\Service\AuditLogger(
+            $c->get(\ArchivioParlante\Repository\AuditLogRepository::class),
+            $c->get(LoggerInterface::class)
+        );
+    });
+
     // Redis Session Manager
     $container->set(\ArchivioParlante\Service\RedisSessionManager::class, function ($c) {
         return new \ArchivioParlante\Service\RedisSessionManager(
@@ -95,6 +113,7 @@ return function (): Container {
             $c->get(\ArchivioParlante\Repository\UserRepository::class),
             $c->get(\ArchivioParlante\Service\JwtService::class),
             $c->get(\ArchivioParlante\Service\RedisSessionManager::class),
+            $c->get(\ArchivioParlante\Service\AuditLogger::class),
             $c->get(LoggerInterface::class)
         );
     });
@@ -111,15 +130,46 @@ return function (): Container {
     $container->set(\ArchivioParlante\Middleware\AuthMiddleware::class, function ($c) {
         return new \ArchivioParlante\Middleware\AuthMiddleware(
             $c->get(\ArchivioParlante\Service\JwtService::class),
+            $c->get(\ArchivioParlante\Service\AuditLogger::class),
             $c->get(LoggerInterface::class)
         );
     });
 
-    // Rate Limit Middleware
-    $container->set(\ArchivioParlante\Middleware\RateLimitMiddleware::class, function ($c) {
+    // === Fase 3.3: Configurable Rate Limiting ===
+
+    // Rate Limit Middleware - Login (5 attempts / 15 min)
+    $container->set('RateLimitMiddleware.login', function ($c) {
         return new \ArchivioParlante\Middleware\RateLimitMiddleware(
             $c->get(\ArchivioParlante\Service\RedisSessionManager::class),
-            $c->get(LoggerInterface::class)
+            $c->get(\ArchivioParlante\Service\AuditLogger::class),
+            $c->get(LoggerInterface::class),
+            (int) ($_ENV['RATE_LIMIT_LOGIN_MAX'] ?? 5),
+            (int) ($_ENV['RATE_LIMIT_LOGIN_WINDOW'] ?? 900),
+            'login'
+        );
+    });
+
+    // Rate Limit Middleware - Register (3 attempts / 1 hour)
+    $container->set('RateLimitMiddleware.register', function ($c) {
+        return new \ArchivioParlante\Middleware\RateLimitMiddleware(
+            $c->get(\ArchivioParlante\Service\RedisSessionManager::class),
+            $c->get(\ArchivioParlante\Service\AuditLogger::class),
+            $c->get(LoggerInterface::class),
+            (int) ($_ENV['RATE_LIMIT_REGISTER_MAX'] ?? 3),
+            (int) ($_ENV['RATE_LIMIT_REGISTER_WINDOW'] ?? 3600),
+            'register'
+        );
+    });
+
+    // Rate Limit Middleware - Refresh (20 attempts / 15 min)
+    $container->set('RateLimitMiddleware.refresh', function ($c) {
+        return new \ArchivioParlante\Middleware\RateLimitMiddleware(
+            $c->get(\ArchivioParlante\Service\RedisSessionManager::class),
+            $c->get(\ArchivioParlante\Service\AuditLogger::class),
+            $c->get(LoggerInterface::class),
+            (int) ($_ENV['RATE_LIMIT_REFRESH_MAX'] ?? 20),
+            (int) ($_ENV['RATE_LIMIT_REFRESH_WINDOW'] ?? 900),
+            'refresh'
         );
     });
 

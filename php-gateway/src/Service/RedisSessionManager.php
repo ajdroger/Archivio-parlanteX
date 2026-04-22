@@ -186,6 +186,41 @@ class RedisSessionManager
     }
 
     /**
+     * Generic rate limit counter increment
+     *
+     * @param string $key Redis key for rate limit counter
+     * @param int $ttl Time to live in seconds
+     * @return int Number of attempts
+     */
+    public function incrementRateLimitCounter(string $key, int $ttl): int
+    {
+        try {
+            $attempts = $this->redis->incr($key);
+
+            // Set TTL on first attempt
+            if ($attempts === 1) {
+                $this->redis->expire($key, $ttl);
+            }
+
+            $this->logger->debug('Incremented rate limit counter', [
+                'key' => $key,
+                'attempts' => $attempts,
+                'ttl' => $ttl,
+            ]);
+
+            return (int) $attempts;
+        } catch (PredisException $e) {
+            $this->logger->error('Failed to increment rate limit counter', [
+                'error' => $e->getMessage(),
+                'key' => $key,
+            ]);
+
+            // Return 0 to allow request (fail open on Redis error)
+            return 0;
+        }
+    }
+
+    /**
      * Increment login attempt counter for IP address
      *
      * @param string $ip IP address
@@ -193,28 +228,28 @@ class RedisSessionManager
      */
     public function incrementLoginAttempts(string $ip): int
     {
+        $key = $this->getRateLimitKey($ip);
+        return $this->incrementRateLimitCounter($key, self::RATE_LIMIT_TTL);
+    }
+
+    /**
+     * Generic get rate limit attempts
+     *
+     * @param string $key Redis key for rate limit counter
+     * @return int Number of attempts
+     */
+    public function getRateLimitAttempts(string $key): int
+    {
         try {
-            $key = $this->getRateLimitKey($ip);
-            $attempts = $this->redis->incr($key);
+            $attempts = $this->redis->get($key);
 
-            // Set TTL on first attempt
-            if ($attempts === 1) {
-                $this->redis->expire($key, self::RATE_LIMIT_TTL);
-            }
-
-            $this->logger->debug('Incremented login attempts', [
-                'ip' => $ip,
-                'attempts' => $attempts,
-            ]);
-
-            return (int) $attempts;
+            return $attempts !== null ? (int) $attempts : 0;
         } catch (PredisException $e) {
-            $this->logger->error('Failed to increment login attempts', [
+            $this->logger->error('Failed to get rate limit attempts', [
                 'error' => $e->getMessage(),
-                'ip' => $ip,
+                'key' => $key,
             ]);
 
-            // Return 0 to allow login (fail open on Redis error)
             return 0;
         }
     }
@@ -227,19 +262,8 @@ class RedisSessionManager
      */
     public function getLoginAttempts(string $ip): int
     {
-        try {
-            $key = $this->getRateLimitKey($ip);
-            $attempts = $this->redis->get($key);
-
-            return $attempts !== null ? (int) $attempts : 0;
-        } catch (PredisException $e) {
-            $this->logger->error('Failed to get login attempts', [
-                'error' => $e->getMessage(),
-                'ip' => $ip,
-            ]);
-
-            return 0;
-        }
+        $key = $this->getRateLimitKey($ip);
+        return $this->getRateLimitAttempts($key);
     }
 
     /**

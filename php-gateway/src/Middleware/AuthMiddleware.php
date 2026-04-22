@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ArchivioParlante\Middleware;
 
 use ArchivioParlante\Exception\AuthenticationException;
+use ArchivioParlante\Service\AuditLogger;
 use ArchivioParlante\Service\JwtService;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -30,6 +31,7 @@ final class AuthMiddleware implements MiddlewareInterface
 {
     public function __construct(
         private JwtService $jwtService,
+        private AuditLogger $auditLogger,
         private LoggerInterface $logger
     ) {
     }
@@ -97,6 +99,24 @@ final class AuthMiddleware implements MiddlewareInterface
      */
     private function createUnauthorizedResponse(Request $request, string $message): Response
     {
+        // Extract request details for audit logging
+        $serverParams = $request->getServerParams();
+        $ipAddress = $serverParams['REMOTE_ADDR'] ?? '127.0.0.1';
+        $userAgent = $request->getHeaderLine('User-Agent') ?: 'Unknown';
+        $requestPath = $request->getUri()->getPath();
+        $requestMethod = $request->getMethod();
+
+        // Log unauthorized access attempt to audit log
+        $this->auditLogger->logSecurityEvent(
+            eventType: 'unauthorized_access',
+            ipAddress: $ipAddress,
+            userAgent: $userAgent,
+            requestPath: $requestPath,
+            requestMethod: $requestMethod,
+            statusCode: 401,
+            eventData: ['reason' => $message]
+        );
+
         $responseBody = json_encode([
             'error' => 'Unauthorized',
             'message' => $message,

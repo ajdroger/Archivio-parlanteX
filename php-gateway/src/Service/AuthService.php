@@ -34,6 +34,7 @@ final class AuthService
         private UserRepository $userRepository,
         private JwtService $jwtService,
         private RedisSessionManager $sessionManager,
+        private AuditLogger $auditLogger,
         private LoggerInterface $logger
     ) {
     }
@@ -44,11 +45,13 @@ final class AuthService
      * @param string $email User email
      * @param string $password Plain password
      * @param string $fullName User full name
+     * @param string $ipAddress Client IP address (for audit logging)
+     * @param string $userAgent Client User-Agent (for audit logging)
      * @return array{access_token: string, refresh_token: string, user: array{id: int, email: string, full_name: string, role: string}} Tokens and user data
      * @throws ValidationException If validation fails
      * @throws \RuntimeException If database operation fails
      */
-    public function register(string $email, string $password, string $fullName): array
+    public function register(string $email, string $password, string $fullName, string $ipAddress, string $userAgent): array
     {
         // Validate email format
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -66,13 +69,8 @@ final class AuthService
             throw ValidationException::duplicateEmail();
         }
 
-        // Hash password with bcrypt
+        // Hash password with bcrypt (bcrypt never fails with valid params)
         $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]);
-
-        if ($passwordHash === null || $passwordHash === false) {
-            $this->logger->error('Password hashing failed');
-            throw new \RuntimeException('Password hashing failed');
-        }
 
         // Create user
         $userId = $this->userRepository->create($email, $passwordHash, $fullName);
@@ -84,6 +82,17 @@ final class AuthService
         // Store refresh token in Redis
         $this->sessionManager->storeRefreshToken($refreshToken, $userId);
         $this->sessionManager->updateSessionActivity($userId);
+
+        // Log successful registration to audit log
+        $this->auditLogger->logAuthEvent(
+            eventType: 'register_success',
+            userId: $userId,
+            ipAddress: $ipAddress,
+            userAgent: $userAgent,
+            requestPath: '/api/auth/register',
+            requestMethod: 'POST',
+            statusCode: 201
+        );
 
         $this->logger->info('User registered successfully', [
             'user_id' => $userId,
@@ -107,12 +116,13 @@ final class AuthService
      *
      * @param string $email User email
      * @param string $password Plain password
-     * @param string $ipAddress Client IP address (for rate limiting)
+     * @param string $ipAddress Client IP address (for rate limiting and audit logging)
+     * @param string $userAgent Client User-Agent (for audit logging)
      * @return array{access_token: string, refresh_token: string, user: array{id: int, email: string, full_name: string, role: string, last_login_at: string|null}} Tokens and user data
      * @throws AuthenticationException If credentials are invalid
      * @throws \RuntimeException If database operation fails
      */
-    public function login(string $email, string $password, string $ipAddress): array
+    public function login(string $email, string $password, string $ipAddress, string $userAgent): array
     {
         // Find user by email
         $user = $this->userRepository->findByEmail($email);
@@ -125,6 +135,18 @@ final class AuthService
             ]);
 
             $this->sessionManager->incrementLoginAttempts($ipAddress);
+
+            // Log failed login to audit log
+            $this->auditLogger->logAuthEvent(
+                eventType: 'login_failed',
+                userId: null,
+                ipAddress: $ipAddress,
+                userAgent: $userAgent,
+                requestPath: '/api/auth/login',
+                requestMethod: 'POST',
+                statusCode: 401,
+                eventData: ['reason' => 'user_not_found']
+            );
 
             // Generic error message to prevent user enumeration
             throw AuthenticationException::invalidCredentials();
@@ -139,6 +161,18 @@ final class AuthService
             ]);
 
             $this->sessionManager->incrementLoginAttempts($ipAddress);
+
+            // Log failed login to audit log
+            $this->auditLogger->logAuthEvent(
+                eventType: 'login_failed',
+                userId: (int) $user['id'],
+                ipAddress: $ipAddress,
+                userAgent: $userAgent,
+                requestPath: '/api/auth/login',
+                requestMethod: 'POST',
+                statusCode: 401,
+                eventData: ['reason' => 'invalid_password']
+            );
 
             throw AuthenticationException::invalidCredentials();
         }
@@ -171,6 +205,17 @@ final class AuthService
         // Reset failed login attempts on successful login
         $this->sessionManager->resetLoginAttempts($ipAddress);
 
+        // Log successful login to audit log
+        $this->auditLogger->logAuthEvent(
+            eventType: 'login_success',
+            userId: (int) $user['id'],
+            ipAddress: $ipAddress,
+            userAgent: $userAgent,
+            requestPath: '/api/auth/login',
+            requestMethod: 'POST',
+            statusCode: 200
+        );
+
         $this->logger->info('User logged in successfully', [
             'user_id' => $user['id'],
             'email' => $email,
@@ -194,11 +239,13 @@ final class AuthService
      * Refresh access token using refresh token
      *
      * @param string $refreshToken Refresh token
+     * @param string $ipAddress Client IP address (for audit logging)
+     * @param string $userAgent Client User-Agent (for audit logging)
      * @return array{access_token: string} New access token
      * @throws AuthenticationException If refresh token is invalid or expired
      * @throws \RuntimeException If database operation fails
      */
-    public function refresh(string $refreshToken): array
+    public function refresh(string $refreshToken, string $ipAddress, string $userAgent): array
     {
         // Validate refresh token in Redis
         $userId = $this->sessionManager->validateRefreshToken($refreshToken);
@@ -227,6 +274,17 @@ final class AuthService
         );
 
         $this->sessionManager->updateSessionActivity((int) $user['id']);
+
+        // Log token refresh to audit log
+        $this->auditLogger->logAuthEvent(
+            eventType: 'token_refresh',
+            userId: (int) $user['id'],
+            ipAddress: $ipAddress,
+            userAgent: $userAgent,
+            requestPath: '/api/auth/refresh',
+            requestMethod: 'POST',
+            statusCode: 200
+        );
 
         $this->logger->info('Access token refreshed', [
             'user_id' => $user['id'],

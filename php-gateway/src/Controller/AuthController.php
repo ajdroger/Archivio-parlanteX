@@ -46,10 +46,17 @@ final class AuthController
             // Validate required fields
             $this->validateRequiredFields($body, ['email', 'password', 'name']);
 
+            // Get client IP address and User-Agent for audit logging
+            $serverParams = $request->getServerParams();
+            $ipAddress = $serverParams['REMOTE_ADDR'] ?? '127.0.0.1';
+            $userAgent = $request->getHeaderLine('User-Agent') ?: 'Unknown';
+
             $result = $this->authService->register(
                 $body['email'],
                 $body['password'],
-                $body['name']
+                $body['name'],
+                $ipAddress,
+                $userAgent
             );
 
             $response->getBody()->write(json_encode($result, JSON_THROW_ON_ERROR));
@@ -84,14 +91,16 @@ final class AuthController
             // Validate required fields
             $this->validateRequiredFields($body, ['email', 'password']);
 
-            // Get client IP address
+            // Get client IP address and User-Agent for rate limiting and audit logging
             $serverParams = $request->getServerParams();
             $ipAddress = $serverParams['REMOTE_ADDR'] ?? '127.0.0.1';
+            $userAgent = $request->getHeaderLine('User-Agent') ?: 'Unknown';
 
             $result = $this->authService->login(
                 $body['email'],
                 $body['password'],
-                $ipAddress
+                $ipAddress,
+                $userAgent
             );
 
             $response->getBody()->write(json_encode($result, JSON_THROW_ON_ERROR));
@@ -127,7 +136,16 @@ final class AuthController
             // Validate required fields
             $this->validateRequiredFields($body, ['refresh_token']);
 
-            $result = $this->authService->refresh($body['refresh_token']);
+            // Get client IP address and User-Agent for audit logging
+            $serverParams = $request->getServerParams();
+            $ipAddress = $serverParams['REMOTE_ADDR'] ?? '127.0.0.1';
+            $userAgent = $request->getHeaderLine('User-Agent') ?: 'Unknown';
+
+            $result = $this->authService->refresh(
+                $body['refresh_token'],
+                $ipAddress,
+                $userAgent
+            );
 
             $response->getBody()->write(json_encode($result, JSON_THROW_ON_ERROR));
 
@@ -254,7 +272,7 @@ final class AuthController
         $errors = [];
 
         foreach ($requiredFields as $field) {
-            if (!isset($data[$field]) || $data[$field] === '' || $data[$field] === null) {
+            if (!isset($data[$field]) || $data[$field] === '') {
                 $errors[$field] = ['This field is required'];
             }
         }
