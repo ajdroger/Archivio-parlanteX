@@ -1,7 +1,7 @@
 # Security Audit - Fase 1.1 (Rust Engine Scaffolding)
 
 **Date**: 2026-04-21  
-**Auditor**: Claude Sonnet 4.5  
+**Auditor**: AjDRoger  
 **Scope**: Rust engine scaffolding (config, errors, providers, clients, main.rs)  
 **Standard**: OWASP ASVS Level 2 (subset applicable to current phase)
 

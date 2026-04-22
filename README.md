@@ -197,7 +197,7 @@ Progetto interno. Per modifiche:
 
 ## 📄 Licenza
 
-[MIT License](./LICENSE) — Copyright (c) 2025 Archivio Parlante Team
+[MIT License](./LICENSE) — Copyright (c) 2026 Archivio Parlante Team
 
 ---
 
