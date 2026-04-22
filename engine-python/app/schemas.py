@@ -109,3 +109,38 @@ class RerankResponse(BaseModel):
 
     results: List[RerankResult]
     processing_ms: int
+
+
+# === Contextual Retrieval schemas (Fase 2.3) ===
+
+
+class ChunkToContextualize(BaseModel):
+    """A chunk that needs contextualization"""
+
+    index: int = Field(..., description="Chunk index in document")
+    text: str = Field(..., min_length=1, description="Chunk text")
+
+
+class ContextualizeRequest(BaseModel):
+    """Request to contextualize chunks"""
+
+    doc_id: str = Field(..., min_length=1, description="Document ID")
+    document_text: Optional[str] = Field(None, description="Full document text or substantial excerpt (optional, reconstructed from chunks if missing)")
+    chunks: List[ChunkToContextualize] = Field(..., min_items=1, max_items=500, description="Chunks to contextualize")
+
+
+class ContextualizedChunk(BaseModel):
+    """A contextualized chunk"""
+
+    index: int = Field(..., description="Original chunk index")
+    original_text: str = Field(..., description="Original chunk text")
+    context_prefix: str = Field(..., description="Generated context prefix")
+    full_text: str = Field(..., description="context_prefix + original_text (ready for embedding)")
+
+
+class ContextualizeResponse(BaseModel):
+    """Response from contextualization"""
+
+    doc_id: str
+    chunks: List[ContextualizedChunk]
+    processing_ms: int
