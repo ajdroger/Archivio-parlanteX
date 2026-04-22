@@ -2,8 +2,9 @@
 
 Thin API Gateway layer per authentication, authorization, session management, rate limiting, e proxy verso Rust Engine.
 
-## Features (Fase 3.1)
+## Features
 
+### Fase 3.1 - Gateway Scaffolding
 - ✅ **Slim 4** Framework (PSR-7/PSR-15)
 - ✅ **PHP-DI** Dependency Injection container
 - ✅ **Monolog** Structured logging
@@ -11,6 +12,15 @@ Thin API Gateway layer per authentication, authorization, session management, ra
 - ✅ **PHPUnit** Testing framework (coverage target 80%)
 - ✅ **PHPStan Level 8** Static analysis
 - ✅ **PSR-12** Coding standard
+
+### Fase 3.2 - JWT Authentication ✅
+- ✅ **JWT** access tokens (15 min) + refresh tokens (7 days)
+- ✅ **Bcrypt** password hashing (cost factor 12)
+- ✅ **Redis** session management with TTL
+- ✅ **Rate limiting** (5 attempts per 15 min per IP)
+- ✅ **OWASP ASVS L2** compliant
+- ✅ **firebase/php-jwt** v7 (MIT license)
+- ✅ **Predis** v2 for Redis operations
 
 ## Quick Start
 
@@ -47,7 +57,156 @@ docker run -p 8080:80 \
   archivio-php-gateway
 ```
 
+## Authentication Flow
+
+```
+┌─────────┐                    ┌────────────┐                    ┌───────┐
+│ Client  │                    │ PHP Gateway│                    │ Redis │
+└────┬────┘                    └─────┬──────┘                    └───┬───┘
+     │                               │                               │
+     │  POST /api/auth/register      │                               │
+     ├──────────────────────────────>│                               │
+     │  {email, password, name}      │                               │
+     │                               │  password_hash (bcrypt)       │
+     │                               │  INSERT INTO ap_users         │
+     │                               │                               │
+     │                               │  generateAccessToken()        │
+     │                               │  generateRefreshToken()       │
+     │                               │                               │
+     │                               │  SETEX refresh:{hash} userId  │
+     │                               ├──────────────────────────────>│
+     │                               │                               │
+     │  201 {access_token,           │                               │
+     │       refresh_token, user}    │                               │
+     │<──────────────────────────────┤                               │
+     │                               │                               │
+     │  GET /api/auth/me             │                               │
+     │  Authorization: Bearer <JWT>  │                               │
+     ├──────────────────────────────>│                               │
+     │                               │  validateAccessToken()        │
+     │                               │  (verify signature + exp)     │
+     │                               │                               │
+     │  200 {id, email, role, ...}   │                               │
+     │<──────────────────────────────┤                               │
+     │                               │                               │
+     │  POST /api/auth/refresh       │                               │
+     │  {refresh_token}              │                               │
+     ├──────────────────────────────>│                               │
+     │                               │  GET refresh:{hash}           │
+     │                               ├──────────────────────────────>│
+     │                               │<──────────────────────────────┤
+     │                               │  userId                       │
+     │                               │                               │
+     │                               │  generateAccessToken()        │
+     │                               │                               │
+     │  200 {access_token}           │                               │
+     │<──────────────────────────────┤                               │
+```
+
 ## API Endpoints
+
+### Authentication (Fase 3.2)
+
+#### Register New User
+```bash
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "SecurePass123",  # Min 8 chars, uppercase, lowercase, digit
+  "name": "Full Name"
+}
+
+Response 201:
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "64-byte hex string (128 chars)",
+  "user": {
+    "id": 123,
+    "email": "user@example.com",
+    "full_name": "Full Name",
+    "role": "user"
+  }
+}
+```
+
+#### Login
+```bash
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "SecurePass123"
+}
+
+Response 200:
+{
+  "access_token": "...",
+  "refresh_token": "...",
+  "user": {...}
+}
+
+Response 429 (rate limit exceeded):
+{
+  "error": "Too many requests",
+  "message": "Maximum 5 login attempts exceeded. Please try again in 15 minutes.",
+  "retry_after": 900
+}
+```
+
+#### Refresh Access Token
+```bash
+POST /api/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "..."
+}
+
+Response 200:
+{
+  "access_token": "..." # New 15-min token
+}
+
+Response 401:
+{
+  "error": "Invalid or revoked refresh token"
+}
+```
+
+#### Get Current User
+```bash
+GET /api/auth/me
+Authorization: Bearer <access_token>
+
+Response 200:
+{
+  "id": 123,
+  "email": "user@example.com",
+  "full_name": "Full Name",
+  "role": "user",
+  "is_active": true,
+  "last_login_at": "2026-04-22 10:30:00",
+  "created_at": "2026-01-15 08:00:00"
+}
+```
+
+#### Logout
+```bash
+POST /api/auth/logout
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "refresh_token": "..."
+}
+
+Response 204 (No Content)
+```
+
+### Health Check (Fase 3.1)
 
 ### `GET /health`
 
