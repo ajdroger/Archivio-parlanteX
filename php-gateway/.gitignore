@@ -1,6 +1,7 @@
 /vendor/
 .env
 .phpunit.result.cache
+.phpunit.cache/
 composer.lock
 .DS_Store
 *.log

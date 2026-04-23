@@ -12,7 +12,8 @@ $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->load();
 
 // Create container
-$container = require __DIR__ . '/../config/container.php';
+$containerFactory = require __DIR__ . '/../config/container.php';
+$container = $containerFactory();
 
 // Create App
 AppFactory::setContainer($container);

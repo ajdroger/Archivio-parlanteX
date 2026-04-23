@@ -81,12 +81,15 @@ final class RateLimitMiddleware implements MiddlewareInterface
             return $this->createTooManyRequestsResponse();
         }
 
+        // Increment rate limit counter
+        $this->sessionManager->incrementRateLimitCounter($rateLimitKey, $this->windowSeconds);
+
         // Allow request to proceed
         $this->logger->debug('Rate limit check passed', [
             'endpoint' => $this->endpointName,
             'ip' => $ipAddress,
-            'attempts' => $attempts,
-            'remaining' => $this->maxAttempts - $attempts,
+            'attempts' => $attempts + 1,
+            'remaining' => $this->maxAttempts - ($attempts + 1),
         ]);
 
         return $handler->handle($request);

@@ -8,7 +8,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Log\LoggerInterface;
 
-final class RustEngineProxy
+class RustEngineProxy
 {
     public function __construct(
         private Client $httpClient,
