@@ -4,7 +4,9 @@
 # Multi-stage build for minimal production image
 
 # === Stage 1: Build ===
-FROM rust:1.82-bookworm AS builder
+# Using rust:nightly for edition2024 support (time-core 0.1.8 requires Rust 1.88+)
+# TODO: Switch to rust:1.88-bookworm when released (estimated Q2 2025)
+FROM rust:nightly-bookworm AS builder
 
 WORKDIR /build
 
