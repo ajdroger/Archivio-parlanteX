@@ -124,4 +124,40 @@ class RustEngineProxy
             throw new \RuntimeException('Proxy request failed: ' . $e->getMessage(), 0, $e);
         }
     }
+
+    /**
+     * Execute RAG query
+     *
+     * @param array<string, mixed> $queryData Query parameters (kb_id, query, top_k, etc.)
+     * @return array<string, mixed> Query response with answer and sources
+     * @throws \RuntimeException
+     */
+    public function query(array $queryData): array
+    {
+        return $this->proxyRequest('POST', '/query', $queryData);
+    }
+
+    /**
+     * Ingest document into knowledge base
+     *
+     * @param array<string, mixed> $ingestData Ingest parameters (doc_id, kb_id, file_path, mime_type)
+     * @return array<string, mixed> Ingest response with chunk count and processing time
+     * @throws \RuntimeException
+     */
+    public function ingest(array $ingestData): array
+    {
+        return $this->proxyRequest('POST', '/ingest', $ingestData);
+    }
+
+    /**
+     * Compare multiple contracts
+     *
+     * @param array<string, mixed> $compareData Comparison parameters (kb_id, doc_ids, comparison_aspects)
+     * @return array<string, mixed> Comparison response with cross-contract analysis
+     * @throws \RuntimeException
+     */
+    public function compare(array $compareData): array
+    {
+        return $this->proxyRequest('POST', '/compare_contracts', $compareData);
+    }
 }

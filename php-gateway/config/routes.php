@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ArchivioParlante\Controller\AuthController;
 use ArchivioParlante\Controller\HealthController;
+use ArchivioParlante\Controller\ProxyController;
 use ArchivioParlante\Middleware\AuthMiddleware;
 use Slim\App;
 
@@ -27,8 +28,14 @@ return function (App $app): void {
     $app->get('/api/auth/me', AuthController::class . ':me')
         ->add(AuthMiddleware::class);
 
-    // TODO Fase 3.3: Proxy routes to Rust engine (will be protected with AuthMiddleware)
-    // POST /api/query
-    // POST /api/ingest
-    // POST /api/compare
+    // === Fase 3.4: Proxy routes to Rust engine (protected with AuthMiddleware) ===
+
+    $app->post('/api/query', ProxyController::class . ':query')
+        ->add(AuthMiddleware::class);
+
+    $app->post('/api/ingest', ProxyController::class . ':ingest')
+        ->add(AuthMiddleware::class);
+
+    $app->post('/api/compare', ProxyController::class . ':compare')
+        ->add(AuthMiddleware::class);
 };
