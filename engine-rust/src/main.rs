@@ -1,16 +1,24 @@
+mod chunker;
 mod clients;
 mod config;
 mod errors;
+mod middleware;
+mod models;
 mod providers;
+mod rag;
+mod routes;
+mod utils;
 
 use axum::{
     extract::State,
     http::StatusCode,
+    middleware as axum_middleware,
     response::IntoResponse,
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use serde_json::json;
+use utoipa_swagger_ui::SwaggerUi;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::{
@@ -19,31 +27,38 @@ use tower_http::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use clients::{python_worker::PythonWorkerClient, qdrant::QdrantWrapper};
+use clients::python_worker::PythonWorkerClient;
 use config::Config;
 use providers::registry::LlmRegistry;
-
-/// Application shared state
-#[derive(Clone)]
-struct AppState {
-    config: Arc<Config>,
-    llm_registry: Arc<LlmRegistry>,
-    python_worker: Arc<PythonWorkerClient>,
-    // Qdrant wrapper will be created per-KB collection
-}
+use routes::ingest::AppState;
 
 #[tokio::main]
 async fn main() {
-    // Initialize tracing
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,archivio_parlante_rust_engine=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    // Initialize structured JSON logging
+    let log_format = std::env::var("LOG_FORMAT").unwrap_or_else(|_| "pretty".to_string());
+
+    if log_format == "json" {
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "info,archivio_parlante_rust_engine=debug".into()),
+            )
+            .with(tracing_subscriber::fmt::layer().json())
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "info,archivio_parlante_rust_engine=debug".into()),
+            )
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    }
 
     tracing::info!("🦀 Archivio Parlante Rust Engine starting...");
+
+    // Initialize Prometheus metrics
+    routes::metrics::init_metrics();
 
     // Load configuration
     let config = Config::from_env().expect("Failed to load configuration");
@@ -66,12 +81,34 @@ async fn main() {
         python_worker: Arc::new(python_worker),
     };
 
+    // Build API documentation
+    let openapi_spec = routes::docs::get_openapi_spec();
+
     // Build router
     let app = Router::new()
         .route("/health", get(health_handler))
-        .route("/ingest", post(ingest_handler))
-        .route("/query", post(query_handler))
-        .route("/compare_contracts", post(compare_contracts_handler))
+        .route("/metrics", get(routes::metrics::metrics_handler))
+        .route("/openapi.json", get(move || async { openapi_spec }))
+        .merge(SwaggerUi::new("/docs").url("/openapi.json", routes::docs::ApiDoc::openapi()))
+        .route("/ingest", post(routes::ingest::handle_ingest))
+        .route("/query", post(routes::query::handle_query))
+        .route(
+            "/compare_contracts",
+            post(routes::compare::handle_compare_contracts),
+        )
+        // KB management endpoints
+        .route("/kb/:kb_id/documents", get(routes::kb::list_documents))
+        .route(
+            "/kb/:kb_id/documents/:doc_id",
+            delete(routes::kb::delete_document),
+        )
+        .route("/kb/:kb_id/graph", get(routes::kb::get_graph))
+        .route("/kb/:kb_id/stats", get(routes::kb::get_stats))
+        .route("/admin/reindex/:kb_id", post(routes::kb::reindex_kb))
+        // Security middleware (applied to all routes except /health, /metrics, /docs)
+        .layer(axum_middleware::from_fn(middleware::rate_limit::rate_limit_middleware))
+        .layer(axum_middleware::from_fn(middleware::internal_auth::internal_auth_middleware))
+        // Cross-cutting middleware
         .layer(CorsLayer::permissive()) // Dev only, configure properly in production
         .layer(TraceLayer::new_for_http())
         .with_state(state);
@@ -83,13 +120,52 @@ async fn main() {
         .expect("Invalid listen address");
     tracing::info!("🚀 Listening on {}", addr);
 
-    // Start server
+    // Start server with graceful shutdown
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .expect("Failed to bind address");
+
+    tracing::info!("Server ready, press Ctrl+C to shutdown gracefully");
+
     axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .expect("Server error");
+
+    tracing::info!("Server shutdown complete");
+}
+
+/// Graceful shutdown signal handler
+///
+/// Waits for SIGTERM or Ctrl+C, then allows in-flight requests to complete
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("Failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            tracing::info!("Received Ctrl+C, initiating graceful shutdown");
+        },
+        _ = terminate => {
+            tracing::info!("Received SIGTERM, initiating graceful shutdown");
+        },
+    }
+
+    tracing::info!("Shutdown signal received, waiting for in-flight requests to complete...");
 }
 
 /// Health check endpoint
@@ -110,44 +186,7 @@ async fn health_handler(State(state): State<AppState>) -> impl IntoResponse {
     )
 }
 
-/// Document ingest handler (Fase 1.2+)
-async fn ingest_handler(State(_state): State<AppState>) -> impl IntoResponse {
-    tracing::warn!("Ingest endpoint called but not yet implemented");
-
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(json!({
-            "error": "Ingest endpoint not yet implemented",
-            "code": "NOT_IMPLEMENTED",
-            "available_in": "Fase 1.2"
-        })),
-    )
-}
-
-/// Query handler with RAG (Fase 1.3+)
-async fn query_handler(State(_state): State<AppState>) -> impl IntoResponse {
-    tracing::warn!("Query endpoint called but not yet implemented");
-
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(json!({
-            "error": "Query endpoint not yet implemented",
-            "code": "NOT_IMPLEMENTED",
-            "available_in": "Fase 1.3"
-        })),
-    )
-}
-
-/// Multi-contract comparison handler (Fase 1.5+)
-async fn compare_contracts_handler(State(_state): State<AppState>) -> impl IntoResponse {
-    tracing::warn!("Compare contracts endpoint called but not yet implemented");
-
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(json!({
-            "error": "Compare contracts endpoint not yet implemented",
-            "code": "NOT_IMPLEMENTED",
-            "available_in": "Fase 1.5"
-        })),
-    )
-}
+// Route handlers now in routes:: modules:
+// - routes::ingest::handle_ingest
+// - routes::query::handle_query
+// - routes::compare::handle_compare_contracts

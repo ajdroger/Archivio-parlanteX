@@ -4,9 +4,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Stack: Rust + Python + PHP](https://img.shields.io/badge/Stack-Rust%20%2B%20Python%20%2B%20PHP-blue)](https://github.com)
-[![Status: Fase 1.1 ✅](https://img.shields.io/badge/Status-Fase%201.1%20%E2%9C%85-green)](./CHANGELOG.md)
+[![Status: Fase 1.3 ✅](https://img.shields.io/badge/Status-Fase%201.3%20%E2%9C%85-green)](./CHANGELOG.md)
 
-> **📍 Status Progetto**: Fase 1.1 (Rust Engine Scaffolding) completata — multi-provider LLM architecture, Qdrant/Python worker clients, AppState router. Prossimo: Fase 1.2 (Semantic Chunker + Contextual Retrieval).
+> **📍 Status Progetto**: Fase 1.3 (Ingestion Pipeline End-to-End) completata — pipeline completo parse→chunk→contextualize→embed→store Qdrant, validazione MIME, batched embeddings, per-KB collections. Prossimo: Fase 1.4 (Hybrid Search + Reranker).
 
 ---
 
@@ -197,7 +197,7 @@ Progetto interno. Per modifiche:
 
 ## 📄 Licenza
 
-[MIT License](./LICENSE) — Copyright (c) 2025 Archivio Parlante Team
+[MIT License](./LICENSE) — Copyright (c) 2026 Archivio Parlante Team
 
 ---
 

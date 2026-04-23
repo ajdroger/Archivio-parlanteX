@@ -44,8 +44,31 @@ qdrant-client = "1.12"
 # UUID
 uuid = { version = "1.11", features = ["v4", "serde"] }
 
+# Date/Time
+chrono = "0.4"
+
 # Environment
 dotenvy = "0.15"
+
+# Tokenization
+tiktoken-rs = "0.5"
+
+# Regex
+regex = "1"
+
+# Concurrent data structures
+dashmap = "6"
+
+# BM25 sparse vectors
+tantivy = "0.22"
+
+# Observability
+prometheus = "0.13"
+lazy_static = "1.4"
+
+# OpenAPI documentation
+utoipa = { version = "5", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "8", features = ["axum"] }
 
 [profile.release]
 opt-level = 3

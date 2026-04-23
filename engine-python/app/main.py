@@ -4,9 +4,15 @@ FastAPI server for PDF parsing, reranking, and knowledge graph extraction
 """
 
 import logging
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
+
 import structlog
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.routers import contextualize, extract_kg, parse, rerank
 
 # Configure structured logging
 structlog.configure(
@@ -19,25 +25,75 @@ structlog.configure(
 
 logger = structlog.get_logger()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown"""
+    logger.info("🐍 Python AI Worker starting...")
+
+    # Initialize BGE reranker (lazy loading, but warm up on startup)
+    try:
+        from app.services.reranker import get_reranker
+        reranker = get_reranker()
+        reranker.initialize()
+        logger.info("✅ BGE reranker initialized")
+    except Exception as e:
+        logger.warning("reranker_init_skipped", error=str(e))
+
+    # TODO Fase 2.3+: Initialize spaCy NER, contextual retrieval, etc.
+    yield
+    logger.info("Python AI Worker shutting down...")
+
+
 # Create FastAPI app
 app = FastAPI(
     title="Archivio Parlante Python AI Worker",
     description="PDF parsing, OCR, reranking, and knowledge graph extraction",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # TODO: restrict in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup"""
-    logger.info("🐍 Python AI Worker starting...")
-    # TODO Fase 2: Initialize ML models (BGE reranker, spaCy NER, etc.)
+# Include routers
+app.include_router(parse.router)
+app.include_router(rerank.router)
+app.include_router(contextualize.router)
+app.include_router(extract_kg.router)
 
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    logger.info("Python AI Worker shutting down...")
+# Exception handlers
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle validation errors"""
+    logger.warning("validation_error", errors=exc.errors(), body=exc.body)
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": "Validation error",
+            "detail": exc.errors(),
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Handle all other exceptions"""
+    logger.error("unhandled_exception", error=str(exc), path=request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "detail": str(exc),
+        },
+    )
 
 
 @app.get("/health")
@@ -62,10 +118,10 @@ async def root():
         "service": "Archivio Parlante Python AI Worker",
         "endpoints": [
             "GET /health",
-            "POST /parse (Fase 2)",
-            "POST /rerank (Fase 2)",
-            "POST /contextualize (Fase 2)",
-            "POST /extract_kg (Fase 2)",
+            "POST /parse",
+            "POST /rerank",
+            "POST /contextualize",
+            "POST /extract_kg",
         ],
     }
 
