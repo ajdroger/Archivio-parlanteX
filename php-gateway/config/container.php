@@ -37,6 +37,16 @@ return function (): Container {
         );
     });
 
+    // === Controllers ===
+
+    // Health Controller
+    $container->set(\ArchivioParlante\Controller\HealthController::class, function ($c) {
+        return new \ArchivioParlante\Controller\HealthController(
+            $c->get(\ArchivioParlante\Service\RustEngineProxy::class),
+            $c->get(LoggerInterface::class)
+        );
+    });
+
     // === Fase 3.2: Authentication Services ===
 
     // PDO MySQL Connection
@@ -122,6 +132,17 @@ return function (): Container {
     $container->set(\ArchivioParlante\Controller\AuthController::class, function ($c) {
         return new \ArchivioParlante\Controller\AuthController(
             $c->get(\ArchivioParlante\Service\AuthService::class),
+            $c->get(LoggerInterface::class)
+        );
+    });
+
+    // === Fase 3.4: Proxy Controller (PHP → Rust) ===
+
+    // Proxy Controller
+    $container->set(\ArchivioParlante\Controller\ProxyController::class, function ($c) {
+        return new \ArchivioParlante\Controller\ProxyController(
+            $c->get(\ArchivioParlante\Service\RustEngineProxy::class),
+            $c->get(\ArchivioParlante\Service\AuditLogger::class),
             $c->get(LoggerInterface::class)
         );
     });
