@@ -30,7 +30,7 @@ impl Bm25Vectorizer {
     ///
     /// Processes all texts to build term→index mapping
     pub fn build_vocabulary(&mut self, texts: &[String]) {
-        let tokenizer = TextAnalyzer::from(SimpleTokenizer::default());
+        let mut tokenizer = TextAnalyzer::from(SimpleTokenizer::default());
 
         for text in texts {
             let mut token_stream = tokenizer.token_stream(text);
@@ -54,7 +54,7 @@ impl Bm25Vectorizer {
     ///
     /// Returns term indices and BM25 weights
     pub fn vectorize(&self, text: &str) -> Result<SparseVector> {
-        let tokenizer = TextAnalyzer::from(SimpleTokenizer::default());
+        let mut tokenizer = TextAnalyzer::from(SimpleTokenizer::default());
 
         // Count term frequencies
         let mut term_freq: HashMap<String, f32> = HashMap::new();
