@@ -148,4 +148,49 @@ class AuditLogger
             'attempts' => $attempts,
         ]);
     }
+
+    /**
+     * Generic event logging method (for proxy operations and other events)
+     *
+     * Simplified interface for logging events with minimal parameters.
+     * Uses $_SERVER superglobal for User-Agent if not provided.
+     *
+     * @param string $eventType Event type (query_success, ingest_failed, etc.)
+     * @param int|null $userId User ID (null for anonymous events)
+     * @param string $ipAddress Client IP address
+     * @param string $requestPath API endpoint path
+     * @param string $requestMethod HTTP method
+     * @param int $statusCode HTTP status code
+     * @param array<string, mixed> $eventData Additional context
+     * @return void
+     */
+    public function logEvent(
+        string $eventType,
+        ?int $userId,
+        string $ipAddress,
+        string $requestPath,
+        string $requestMethod,
+        int $statusCode,
+        array $eventData = []
+    ): void {
+        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
+
+        $this->auditLogRepository->create(
+            userId: $userId,
+            eventType: $eventType,
+            ipAddress: $ipAddress,
+            userAgent: $userAgent,
+            requestPath: $requestPath,
+            requestMethod: $requestMethod,
+            statusCode: $statusCode,
+            eventData: !empty($eventData) ? $eventData : null
+        );
+
+        $this->logger->info('Event logged', [
+            'event_type' => $eventType,
+            'user_id' => $userId,
+            'ip' => $ipAddress,
+            'status_code' => $statusCode,
+        ]);
+    }
 }

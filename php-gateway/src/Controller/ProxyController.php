@@ -63,7 +63,7 @@ final class ProxyController
             $this->auditLogger->logEvent(
                 'query_success',
                 $user['id'],
-                $_SERVER['REMOTE_ADDR'],
+                $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
                 '/api/query',
                 'POST',
                 200,
@@ -83,7 +83,7 @@ final class ProxyController
             $this->auditLogger->logEvent(
                 'query_failed',
                 $user['id'],
-                $_SERVER['REMOTE_ADDR'],
+                $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
                 '/api/query',
                 'POST',
                 500,
@@ -138,7 +138,7 @@ final class ProxyController
             $this->auditLogger->logEvent(
                 'ingest_success',
                 $user['id'],
-                $_SERVER['REMOTE_ADDR'],
+                $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
                 '/api/ingest',
                 'POST',
                 200,
@@ -158,7 +158,7 @@ final class ProxyController
             $this->auditLogger->logEvent(
                 'ingest_failed',
                 $user['id'],
-                $_SERVER['REMOTE_ADDR'],
+                $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
                 '/api/ingest',
                 'POST',
                 500,
@@ -212,7 +212,7 @@ final class ProxyController
             $this->auditLogger->logEvent(
                 'compare_success',
                 $user['id'],
-                $_SERVER['REMOTE_ADDR'],
+                $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
                 '/api/compare',
                 'POST',
                 200,
@@ -232,7 +232,7 @@ final class ProxyController
             $this->auditLogger->logEvent(
                 'compare_failed',
                 $user['id'],
-                $_SERVER['REMOTE_ADDR'],
+                $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
                 '/api/compare',
                 'POST',
                 500,

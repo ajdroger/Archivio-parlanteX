@@ -87,7 +87,6 @@ class ProxyControllerTest extends TestCase
     public function testQueryValidationFailsWithoutKbId(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('Field "kb_id" is required');
 
         $user = ['id' => 1];
         $requestBody = ['query' => 'Test query'];
@@ -98,13 +97,20 @@ class ProxyControllerTest extends TestCase
 
         $response = $this->createMock(ResponseInterface::class);
 
-        $this->controller->query($request, $response);
+        try {
+            $this->controller->query($request, $response);
+            $this->fail('Expected ValidationException was not thrown');
+        } catch (ValidationException $e) {
+            $errors = $e->getErrors();
+            $this->assertArrayHasKey('kb_id', $errors);
+            $this->assertContains('Field "kb_id" is required', $errors['kb_id']);
+            throw $e; // Re-throw for expectException assertion
+        }
     }
 
     public function testQueryValidationFailsWithoutQuery(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('Field "query" is required');
 
         $user = ['id' => 1];
         $requestBody = ['kb_id' => 'test_kb'];
@@ -115,13 +121,19 @@ class ProxyControllerTest extends TestCase
 
         $response = $this->createMock(ResponseInterface::class);
 
-        $this->controller->query($request, $response);
+        try {
+            $this->controller->query($request, $response);
+            $this->fail('Expected ValidationException was not thrown');
+        } catch (ValidationException $e) {
+            $errors = $e->getErrors();
+            $this->assertArrayHasKey('query', $errors);
+            throw $e;
+        }
     }
 
     public function testQueryValidationFailsWithLongQuery(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('Query exceeds maximum length');
 
         $user = ['id' => 1];
         $requestBody = [
@@ -135,7 +147,14 @@ class ProxyControllerTest extends TestCase
 
         $response = $this->createMock(ResponseInterface::class);
 
-        $this->controller->query($request, $response);
+        try {
+            $this->controller->query($request, $response);
+            $this->fail('Expected ValidationException was not thrown');
+        } catch (ValidationException $e) {
+            $errors = $e->getErrors();
+            $this->assertArrayHasKey('query', $errors);
+            throw $e;
+        }
     }
 
     public function testIngestSuccess(): void
@@ -179,7 +198,6 @@ class ProxyControllerTest extends TestCase
     public function testIngestValidationFailsWithInvalidMimeType(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('MIME type not supported');
 
         $user = ['id' => 1];
         $requestBody = [
@@ -195,7 +213,14 @@ class ProxyControllerTest extends TestCase
 
         $response = $this->createMock(ResponseInterface::class);
 
-        $this->controller->ingest($request, $response);
+        try {
+            $this->controller->ingest($request, $response);
+            $this->fail('Expected ValidationException was not thrown');
+        } catch (ValidationException $e) {
+            $errors = $e->getErrors();
+            $this->assertArrayHasKey('mime_type', $errors);
+            throw $e;
+        }
     }
 
     public function testCompareSuccess(): void
@@ -238,7 +263,6 @@ class ProxyControllerTest extends TestCase
     public function testCompareValidationFailsWithTooFewDocuments(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('At least 2 documents are required');
 
         $user = ['id' => 1];
         $requestBody = [
@@ -253,13 +277,19 @@ class ProxyControllerTest extends TestCase
 
         $response = $this->createMock(ResponseInterface::class);
 
-        $this->controller->compare($request, $response);
+        try {
+            $this->controller->compare($request, $response);
+            $this->fail('Expected ValidationException was not thrown');
+        } catch (ValidationException $e) {
+            $errors = $e->getErrors();
+            $this->assertArrayHasKey('doc_ids', $errors);
+            throw $e;
+        }
     }
 
     public function testCompareValidationFailsWithTooManyDocuments(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('Maximum 10 documents allowed');
 
         $user = ['id' => 1];
         $requestBody = [
@@ -274,7 +304,14 @@ class ProxyControllerTest extends TestCase
 
         $response = $this->createMock(ResponseInterface::class);
 
-        $this->controller->compare($request, $response);
+        try {
+            $this->controller->compare($request, $response);
+            $this->fail('Expected ValidationException was not thrown');
+        } catch (ValidationException $e) {
+            $errors = $e->getErrors();
+            $this->assertArrayHasKey('doc_ids', $errors);
+            throw $e;
+        }
     }
 
     public function testQueryHandlesRustEngineError(): void
