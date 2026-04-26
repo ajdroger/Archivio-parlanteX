@@ -46,11 +46,15 @@ final class ProxyController
      */
     public function query(Request $request, Response $response): Response
     {
+        /** @var array{id: int} $user */
         $user = $request->getAttribute('user');
         $body = $request->getParsedBody();
 
         // Validate required fields
         $this->validateQueryRequest($body);
+
+        // Type assertion after validation
+        assert(is_array($body));
 
         $this->logger->info('Proxying query request to Rust engine', [
             'user_id' => $user['id'],
@@ -70,7 +74,12 @@ final class ProxyController
                 ['kb_id' => $body['kb_id'], 'query_length' => strlen($body['query'])]
             );
 
-            $response->getBody()->write(json_encode($result));
+            $json = json_encode($result);
+            if ($json === false) {
+                throw new \RuntimeException('Failed to encode response as JSON');
+            }
+
+            $response->getBody()->write($json);
             return $response
                 ->withHeader('Content-Type', 'application/json')
                 ->withStatus(200);
@@ -90,10 +99,15 @@ final class ProxyController
                 ['error' => $e->getMessage()]
             );
 
-            $response->getBody()->write(json_encode([
+            $errorJson = json_encode([
                 'error' => 'Query failed',
                 'message' => $e->getMessage(),
-            ]));
+            ]);
+            if ($errorJson === false) {
+                $errorJson = '{"error":"Query failed","message":"Unknown error"}';
+            }
+
+            $response->getBody()->write($errorJson);
             return $response
                 ->withHeader('Content-Type', 'application/json')
                 ->withStatus(500);
@@ -120,11 +134,15 @@ final class ProxyController
      */
     public function ingest(Request $request, Response $response): Response
     {
+        /** @var array{id: int} $user */
         $user = $request->getAttribute('user');
         $body = $request->getParsedBody();
 
         // Validate required fields
         $this->validateIngestRequest($body);
+
+        // Type assertion after validation
+        assert(is_array($body));
 
         $this->logger->info('Proxying ingest request to Rust engine', [
             'user_id' => $user['id'],
@@ -145,7 +163,12 @@ final class ProxyController
                 ['doc_id' => $body['doc_id'], 'kb_id' => $body['kb_id']]
             );
 
-            $response->getBody()->write(json_encode($result));
+            $json = json_encode($result);
+            if ($json === false) {
+                throw new \RuntimeException('Failed to encode response as JSON');
+            }
+
+            $response->getBody()->write($json);
             return $response
                 ->withHeader('Content-Type', 'application/json')
                 ->withStatus(200);
@@ -165,10 +188,15 @@ final class ProxyController
                 ['error' => $e->getMessage()]
             );
 
-            $response->getBody()->write(json_encode([
+            $errorJson = json_encode([
                 'error' => 'Ingest failed',
                 'message' => $e->getMessage(),
-            ]));
+            ]);
+            if ($errorJson === false) {
+                $errorJson = '{"error":"Ingest failed","message":"Unknown error"}';
+            }
+
+            $response->getBody()->write($errorJson);
             return $response
                 ->withHeader('Content-Type', 'application/json')
                 ->withStatus(500);
@@ -194,16 +222,20 @@ final class ProxyController
      */
     public function compare(Request $request, Response $response): Response
     {
+        /** @var array{id: int} $user */
         $user = $request->getAttribute('user');
         $body = $request->getParsedBody();
 
         // Validate required fields
         $this->validateCompareRequest($body);
 
+        // Type assertion after validation
+        assert(is_array($body));
+
         $this->logger->info('Proxying compare request to Rust engine', [
             'user_id' => $user['id'],
             'kb_id' => $body['kb_id'] ?? null,
-            'doc_count' => count($body['doc_ids'] ?? []),
+            'doc_count' => is_array($body['doc_ids'] ?? null) ? count($body['doc_ids']) : 0,
         ]);
 
         try {
@@ -219,7 +251,12 @@ final class ProxyController
                 ['kb_id' => $body['kb_id'], 'doc_count' => count($body['doc_ids'])]
             );
 
-            $response->getBody()->write(json_encode($result));
+            $json = json_encode($result);
+            if ($json === false) {
+                throw new \RuntimeException('Failed to encode response as JSON');
+            }
+
+            $response->getBody()->write($json);
             return $response
                 ->withHeader('Content-Type', 'application/json')
                 ->withStatus(200);
@@ -239,10 +276,15 @@ final class ProxyController
                 ['error' => $e->getMessage()]
             );
 
-            $response->getBody()->write(json_encode([
+            $errorJson = json_encode([
                 'error' => 'Compare failed',
                 'message' => $e->getMessage(),
-            ]));
+            ]);
+            if ($errorJson === false) {
+                $errorJson = '{"error":"Compare failed","message":"Unknown error"}';
+            }
+
+            $response->getBody()->write($errorJson);
             return $response
                 ->withHeader('Content-Type', 'application/json')
                 ->withStatus(500);
