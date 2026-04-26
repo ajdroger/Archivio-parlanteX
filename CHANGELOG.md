@@ -7,6 +7,44 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Fase 3.4 — PHP Proxy Routes to Rust Engine (2026-04-23)
+- ProxyController (`php-gateway/src/Controller/ProxyController.php`)
+  - POST /api/query — RAG query endpoint con hybrid search
+  - POST /api/ingest — Document ingestion pipeline proxy
+  - POST /api/compare — Multi-contract comparison proxy
+  - Tutti gli endpoint protetti da AuthMiddleware (JWT required)
+  - Validazione completa dei request bodies (kb_id, query, doc_ids, ecc.)
+  - Gestione errori graceful con logging strutturato
+  - Audit logging per tutte le operazioni (success/failed events)
+- RustEngineProxy service (`php-gateway/src/Service/RustEngineProxy.php`)
+  - Metodi query(), ingest(), compareContracts() per comunicazione con Rust engine
+  - Header X-Internal-Token automatico per autenticazione interna
+  - Gestione errori e retry logic
+- AuditLogger enhancement (`php-gateway/src/Service/AuditLogger.php`)
+  - Metodo generico logEvent() per operazioni proxy
+  - Supporto eventi: query_success, query_failed, ingest_success, ingest_failed, compare_success, compare_failed
+  - Fallback IP address (127.0.0.1) quando REMOTE_ADDR non disponibile
+- Database migration (`db/migrations/003_proxy_audit_events.sql`)
+  - Nuovi event types per audit log delle operazioni proxy
+  - Insert dei 6 event types (query/ingest/compare × success/failed)
+- Test completi (`php-gateway/tests/Unit/ProxyControllerTest.php`)
+  - 69/69 test passing con 308 assertions
+  - Coverage: 60.29% lines (592/982)
+  - Test per validazione, success/error handling, audit logging
+  - Mock di RustEngineProxy e AuditLogger
+- Routes configuration (`php-gateway/config/routes.php`)
+  - POST /api/query (protetto da JWT + rate limiting)
+  - POST /api/ingest (protetto da JWT + rate limiting)
+  - POST /api/compare (protetto da JWT + rate limiting)
+- Dependency injection (`php-gateway/config/container.php`)
+  - Registrazione RustEngineProxy con dependency su LoggerInterface
+  - Registrazione ProxyController con tutte le dependencies
+- Fix tecnici post-implementazione
+  - Rust: aggiornamento a nightly per edition2024 support
+  - Rust: aggiunta mut a tokenizer per tantivy API compatibility
+  - Rust: update Dockerfile con nightly toolchain
+  - Python: update requirements.txt per build compatibility
+
 ### Fase 1.3 — Ingestion Pipeline End-to-End (2026-04-21)
 - Document models (`src/models/document.rs`)
   - Document, IngestRequest, IngestResponse structs

@@ -4,9 +4,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Stack: Rust + Python + PHP](https://img.shields.io/badge/Stack-Rust%20%2B%20Python%20%2B%20PHP-blue)](https://github.com)
-[![Status: Fase 1.3 ✅](https://img.shields.io/badge/Status-Fase%201.3%20%E2%9C%85-green)](./CHANGELOG.md)
+[![Status: Fase 3.4 ✅](https://img.shields.io/badge/Status-Fase%203.4%20%E2%9C%85-green)](./CHANGELOG.md)
 
-> **📍 Status Progetto**: Fase 1.3 (Ingestion Pipeline End-to-End) completata — pipeline completo parse→chunk→contextualize→embed→store Qdrant, validazione MIME, batched embeddings, per-KB collections. Prossimo: Fase 1.4 (Hybrid Search + Reranker).
+> **📍 Status Progetto**: Fase 3.4 (PHP Proxy Routes to Rust Engine) completata — endpoint /api/query, /api/ingest, /api/compare con JWT auth, rate limiting, audit logging, validazione completa. Prossimo: Fase 4 (Frontend Multi-Contract UI).
 
 ---
 
@@ -97,6 +97,91 @@ Accedi all'UI: **http://localhost:8080**
 | `make bench` | Esegue benchmark (ingest, query, hallucination, concurrent) |
 | `make mysql-shell` | Connessione shell MySQL |
 | `make backup-db` | Backup database |
+
+---
+
+## 🔌 API Endpoints
+
+Tutti gli endpoint richiedono autenticazione JWT (header `Authorization: Bearer <token>`).
+
+### POST /api/query
+Query RAG con hybrid search + reranking + LLM response generation.
+
+**Request:**
+```json
+{
+  "kb_id": "contracts_2024",
+  "query": "Quali sono le penali previste per inadempimento?",
+  "top_k": 10,
+  "rerank_top_n": 5
+}
+```
+
+**Response:**
+```json
+{
+  "answer": "Le penali previste sono...",
+  "sources": [
+    {
+      "doc_id": "contract_001",
+      "chunk_id": "abc123",
+      "text_quote": "...",
+      "confidence": 0.92
+    }
+  ],
+  "verified": true
+}
+```
+
+### POST /api/ingest
+Ingest documento in knowledge base (parsing + chunking + embedding + Qdrant storage).
+
+**Request:**
+```json
+{
+  "doc_id": "contract_001",
+  "kb_id": "contracts_2024",
+  "file_path": "/shared/uploads/contract_001.pdf",
+  "mime_type": "application/pdf"
+}
+```
+
+**Response:**
+```json
+{
+  "doc_id": "contract_001",
+  "chunk_count": 42,
+  "processing_time_ms": 3450,
+  "status": "indexed"
+}
+```
+
+### POST /api/compare
+Confronto multi-contratto con analisi comparativa.
+
+**Request:**
+```json
+{
+  "kb_id": "contracts_2024",
+  "doc_ids": ["contract_001", "contract_002", "contract_003"],
+  "comparison_aspects": ["penalties", "payment_terms", "termination_clauses"]
+}
+```
+
+**Response:**
+```json
+{
+  "comparison_table": "| Aspetto | Contract 001 | Contract 002 | ...",
+  "key_differences": ["..."],
+  "information_gaps": [],
+  "verified": true
+}
+```
+
+**Protezioni:**
+- Rate limiting: 100 req/min per utente
+- Audit logging: tutti gli eventi (success/failed) loggati
+- Validazione: MIME type whitelist, length limits, business rules
 
 ---
 
