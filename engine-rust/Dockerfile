@@ -4,9 +4,8 @@
 # Multi-stage build for minimal production image
 
 # === Stage 1: Build ===
-# Using rust:nightly for edition2024 support (time-core 0.1.8 requires Rust 1.88+)
-# TODO: Switch to rust:1.88 when released (estimated Q2 2025)
-FROM rust:nightly AS builder
+# Using rust:1.82 (MSRV per Cargo.toml)
+FROM rust:1.82 AS builder
 
 WORKDIR /build
 
