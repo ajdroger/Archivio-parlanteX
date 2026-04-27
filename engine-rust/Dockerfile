@@ -4,8 +4,9 @@
 # Multi-stage build for minimal production image
 
 # === Stage 1: Build ===
-# Using rust:1.82 (MSRV per Cargo.toml)
-FROM rust:1.82 AS builder
+# Using rust:latest for edition2024 support (time-core 0.1.8 requires edition2024)
+# Rust 1.88+ has edition2024 stabilized
+FROM rust:latest AS builder
 
 WORKDIR /build
 
