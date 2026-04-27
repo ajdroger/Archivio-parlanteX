@@ -4,9 +4,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Stack: Rust + Python + PHP](https://img.shields.io/badge/Stack-Rust%20%2B%20Python%20%2B%20PHP-blue)](https://github.com)
-[![Status: Fase 3.4 ✅](https://img.shields.io/badge/Status-Fase%203.4%20%E2%9C%85-green)](./CHANGELOG.md)
+[![Status: Fase 4 ✅](https://img.shields.io/badge/Status-Fase%204%20%E2%9C%85-green)](./CHANGELOG.md)
 
-> **📍 Status Progetto**: Fase 3.4 (PHP Proxy Routes to Rust Engine) completata — endpoint /api/query, /api/ingest, /api/compare con JWT auth, rate limiting, audit logging, validazione completa. Prossimo: Fase 4 (Frontend Multi-Contract UI).
+> **📍 Status Progetto**: Fase 4 (Frontend Multi-Contract UI) completata — React 18 + Vite + TypeScript frontend con chat RAG, confronto multi-contratto, gestione documenti, selezione LLM provider. Bundle 146KB gzipped. Prossimo: Fase 5 (Advanced Features - Graph RAG, Hallucination Detection).
 
 ---
 
@@ -97,6 +97,116 @@ Accedi all'UI: **http://localhost:8080**
 | `make bench` | Esegue benchmark (ingest, query, hallucination, concurrent) |
 | `make mysql-shell` | Connessione shell MySQL |
 | `make backup-db` | Backup database |
+
+---
+
+## ⚛️ Frontend Development
+
+Il frontend è una Single Page Application (SPA) React 18 con Vite, TypeScript e TailwindCSS v4.
+
+### Setup Locale
+
+```bash
+cd frontend
+
+# Installa dipendenze
+npm install
+
+# Avvia dev server (con HMR)
+npm run dev
+# UI disponibile su http://localhost:5173
+
+# Build per produzione
+npm run build
+# Output in dist/ (146KB gzipped)
+
+# Preview build di produzione
+npm run preview
+
+# Lint e format
+npm run lint
+npm run format
+
+# Test TypeScript compilation
+npx tsc --noEmit
+```
+
+### Variabili d'Ambiente Frontend
+
+Crea `frontend/.env.local` (escluso da git):
+
+```env
+# Base URL del backend (default: /api)
+VITE_API_BASE_URL=http://localhost:8080/api
+
+# Se backend su porta diversa o dominio diverso
+# VITE_API_BASE_URL=https://api.archivioparlante.com/api
+```
+
+### Struttura Frontend
+
+```
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── auth/           # ProtectedRoute
+│   │   ├── chat/           # ChatMessage, ContextViewer
+│   │   ├── comparison/     # ContractComparison
+│   │   ├── documents/      # DocumentSelector, DocumentUpload
+│   │   ├── layout/         # MainLayout
+│   │   └── settings/       # ModelSelector
+│   ├── pages/              # Dashboard, Documents, Compare, Analytics, Admin, Login
+│   ├── store/              # Zustand stores (authStore, appStore)
+│   ├── lib/                # API client (Axios)
+│   ├── types/              # TypeScript interfaces
+│   └── App.tsx             # React Router setup
+├── public/                 # Static assets
+├── dist/                   # Build output (gitignored)
+└── package.json
+```
+
+### Stack Frontend
+
+| Libreria | Versione | Uso |
+|---|---|---|
+| React | 19.2.5 | UI framework |
+| Vite | 8.0.10 | Build tool |
+| TypeScript | 6.0.2 | Type safety |
+| TailwindCSS | 4.2.4 | Styling |
+| React Router | 7.14.2 | Routing |
+| Zustand | 5.0.12 | State management |
+| Axios | 1.15.2 | HTTP client |
+| react-markdown | 10.1.0 | Markdown rendering |
+| lucide-react | 1.11.0 | Icons |
+| @tanstack/react-query | 5.100.5 | Data fetching (future) |
+
+### Comandi npm
+
+| Comando | Descrizione |
+|---|---|
+| `npm run dev` | Dev server con HMR (porta 5173) |
+| `npm run build` | Build produzione (output in dist/) |
+| `npm run preview` | Preview build locale |
+| `npm run lint` | ESLint check |
+| `npm run format` | Prettier format |
+| `npm run test` | Unit tests (Vitest) *(TODO)* |
+| `npm run test:e2e` | E2E tests (Playwright) *(TODO)* |
+
+### Flusso di Sviluppo
+
+1. **Backend running**: Assicurati che `make up` sia attivo (backend su porta 8080)
+2. **Frontend dev**: `cd frontend && npm run dev` (porta 5173)
+3. **Proxy dev**: Vite proxya richieste `/api/*` a `http://localhost:8080` (vedi `vite.config.ts`)
+4. **Hot Reload**: Modifiche ai componenti si riflettono immediatamente
+5. **Build + Test**: `npm run build && npm run preview` per testare build di produzione
+
+### Note Importanti
+
+- **CORS**: Backend deve accettare richieste da `http://localhost:5173` in dev
+- **JWT Tokens**: Salvati in `localStorage` (chiavi: `access_token`, `refresh_token`)
+- **Theme**: Dark mode di default con palette neon (#00ff9f primary, #0a0f1a background)
+- **Responsive**: Breakpoints Tailwind (sm, md, lg, xl) già configurati
+- **Accessibility**: Tutti i componenti con aria-labels e keyboard navigation
 
 ---
 

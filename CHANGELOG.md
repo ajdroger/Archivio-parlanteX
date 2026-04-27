@@ -7,6 +7,197 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Fase 4 — Frontend Multi-Contract UI (React 18 + Vite + TypeScript) (2026-04-27)
+- **Architettura Frontend Completa** (19 componenti, 38 file, 7,819 righe)
+  - React 19.2.5 + Vite 8.0.10 + TypeScript 6.0.2 (strict mode)
+  - TailwindCSS v4 con tema custom dark-neon per legal-tech
+  - Zustand per state management (authStore, appStore)
+  - React Router v7 per routing e navigazione
+  - Axios HTTP client con JWT token refresh interceptor
+  - Bundle finale: 146.27 KB gzipped (70.7% sotto target 500KB)
+
+- **Phase 1: Core Routing Infrastructure**
+  - ProtectedRoute (`frontend/src/components/auth/ProtectedRoute.tsx`)
+    - Auth guard con redirect a /login per utenti non autenticati
+    - Loading spinner durante verifica stato auth
+    - Usa Outlet di React Router per render child routes
+  - App.tsx (`frontend/src/App.tsx`)
+    - BrowserRouter setup con routing completo
+    - Route pubbliche: /login
+    - Route protette: /, /documents, /compare, /analytics, /admin
+    - MainLayout wrapper per tutte le route protette
+    - Inizializzazione auth on mount (fetchCurrentUser)
+  - Placeholder pages (Admin, Analytics, Compare, Documents)
+    - Struttura base con header e empty state
+    - Pronte per implementazione completa
+
+- **Phase 2: Chat Enhancement Components**
+  - ChatMessage (`frontend/src/components/chat/ChatMessage.tsx`)
+    - Rendering markdown con react-markdown + remark-gfm
+    - Styling differenziato user/assistant (flex-row-reverse per user)
+    - Avatar icons (User/Bot da lucide-react)
+    - Code blocks con syntax highlighting
+    - Link esterni con target="_blank" e rel="noopener noreferrer"
+  - ContextViewer (`frontend/src/components/chat/ContextViewer.tsx`)
+    - Display sources con confidence scores color-coded
+      - Verde >70%, giallo 50-70%, rosso <50%
+    - Verification badge (CheckCircle verde) se verified=true
+    - Information gaps warning (AlertTriangle giallo)
+    - Collapsible sources list con ChevronDown/Up
+    - Doc metadata (page, section) se disponibile
+  - DashboardPage refactored (`frontend/src/pages/DashboardPage.tsx`)
+    - Usa ChatMessage e ContextViewer invece di inline rendering
+    - Query input con validazione
+    - Loading states con Loader2 spinner
+    - Error handling con alert box rosso
+
+- **Phase 3: Multi-Contract Comparison (Killer Feature)**
+  - DocumentSelector (`frontend/src/components/documents/DocumentSelector.tsx`)
+    - Multi-select con checkboxes
+    - Search/filter per nome documento
+    - Status badges (indexed=verde, processing=giallo, error=rosso)
+    - Fetch documenti via api.listDocuments(kb_id)
+    - Display: filename, created_at, status
+    - Selection count in header
+  - ContractComparison (`frontend/src/components/comparison/ContractComparison.tsx`)
+    - Input: aspect list (es. "Clausole di recesso", "Penali")
+    - Add/remove aspects dinamicamente
+    - Aspect-based comparison (non free-text question)
+    - POST /api/compare con {kb_id, doc_ids, comparison_aspects}
+    - Results table con righe per aspect, colonne per documento
+    - Key differences section evidenziata
+    - Information gaps warning
+    - Disable se <2 docs selezionati
+  - ComparePage (`frontend/src/pages/ComparePage.tsx`)
+    - Layout: sidebar sinistra (DocumentSelector) + main content (ContractComparison)
+    - DocumentSelector integrato con appStore.selectedDocIds
+    - Clear selection button
+    - Empty state se no KB selezionata
+
+- **Phase 4: Document Management**
+  - DocumentUpload (`frontend/src/components/documents/DocumentUpload.tsx`)
+    - Drag-and-drop zone con onDragOver/onDrop handlers
+    - File input multiplo (accept: .pdf, .docx, .txt)
+    - Validazione: mime type + size limit (200MB per file)
+    - Sequential upload con progress tracking
+    - Upload status per file: uploading (Loader2), success (CheckCircle), error (XCircle)
+    - Display totale size, success count, error count
+    - Clear completed button
+  - DocumentsPage (`frontend/src/pages/DocumentsPage.tsx`)
+    - DocumentUpload component in sezione dedicata
+    - Document grid (3 colonne responsive)
+    - Card per documento: nome, mime_type, status, created_at, indexed_at, tags
+    - Delete button con confirm dialog
+    - Fetch via api.listDocuments(kb_id)
+    - Delete via api.deleteDocument(kb_id, doc_id)
+    - Empty state con FileText icon
+
+- **Phase 5: LLM Provider Management**
+  - ModelSelector (`frontend/src/components/settings/ModelSelector.tsx`)
+    - Fetch providers via api.listLlmProviders()
+    - Dropdown con lista providers + modelli
+    - Provider icons: Zap (local/gratuito), DollarSign (cloud/pagamento)
+    - Model info: nome, cost per 1K tokens, context length
+    - Disabled state per provider senza API key
+    - Auto-select primo provider enabled on mount
+    - Update appStore.selectedProvider e selectedModel
+  - DashboardPage integration
+    - ModelSelector in header (flex justify-between)
+    - Visible durante query RAG
+    - Selected model passa a api.query()
+  - API client enhancement (`frontend/src/lib/api.ts`)
+    - Aggiunto metodo listLlmProviders()
+    - GET /llm/providers
+
+- **State Management (Zustand)**
+  - authStore (`frontend/src/store/authStore.ts`)
+    - State: user, isAuthenticated, isLoading, error
+    - Actions: login, register, logout, fetchCurrentUser, clearError
+    - Token storage in localStorage (access_token, refresh_token)
+    - Auto-logout on 401 durante fetchCurrentUser
+  - appStore (`frontend/src/store/appStore.ts`)
+    - State: currentKb, knowledgeBases, documents, selectedDocIds, comparisonResult, comparisonLoading/Phase/Error, providers, selectedProvider, selectedModel
+    - Actions: toggleDocSelection, clearDocSelection, setComparisonResult, setProviders, setSelectedProvider, setSelectedModel
+
+- **API Client (Axios)**
+  - api.ts (`frontend/src/lib/api.ts`)
+    - Base URL: import.meta.env.VITE_API_BASE_URL || '/api'
+    - Request interceptor: JWT token in Authorization header
+    - Response interceptor: token refresh on 401
+      - POST /auth/refresh con refresh_token
+      - Retry original request con nuovo access_token
+      - Logout e redirect a /login se refresh fallisce
+    - Metodi implementati:
+      - Auth: login, register, logout, getCurrentUser
+      - Query: query (POST /query)
+      - Ingest: ingest (POST /ingest)
+      - Compare: compareContracts (POST /compare)
+      - KB: listKnowledgeBases, getKbStats
+      - Documents: listDocuments, deleteDocument, uploadDocument
+      - LLM: listLlmProviders
+      - Health: health
+
+- **TypeScript Types**
+  - types/index.ts (`frontend/src/types/index.ts`)
+    - User (id, email, full_name, role, created_at)
+    - KnowledgeBase (id, name, description, doc_count, chunk_count)
+    - Document (id, kb_id, source_name, mime_type, status, indexed_at, tags)
+    - SearchResult (chunk_id, doc_id, text_quote, confidence, metadata)
+    - QueryResponse (answer, sources, verified, processing_time_ms, information_gaps)
+    - ComparisonResult (aspects, key_differences, recommendations, information_gaps, verified)
+      - ComparisonAspect (aspect_name, cells)
+      - ComparisonCell (doc_id, present, text_quote, confidence, verified)
+    - LLMProvider (id, name, enabled, is_local, models, requires_api_key, has_api_key)
+    - LLMModel (id, name, provider, cost_per_1k_input/output, context_length)
+    - IngestResponse, CostTracking
+
+- **Styling (TailwindCSS v4)**
+  - tailwind.config.js con color palette custom
+    - primary: #00ff9f (neon green) con scale 100-900
+    - dark: #0a0f1a (bg principale) con scale 50-300
+  - index.css con @import "tailwindcss" e @theme
+  - Componenti UI con classi Tailwind
+  - Dark theme di default
+  - Responsive design (md, lg breakpoints)
+
+- **Build & Tooling**
+  - Vite config (`vite.config.ts`)
+    - Plugin: @vitejs/plugin-react
+    - Build output: dist/
+  - TypeScript config (`tsconfig.json`)
+    - strict: true
+    - verbatimModuleSyntax: true (type imports separati)
+    - target: ES2023
+    - module: ESNext
+  - ESLint config (`eslint.config.js`)
+    - @eslint/js, typescript-eslint
+    - Warn on unused vars
+  - PostCSS config (`postcss.config.js`)
+    - @tailwindcss/postcss plugin
+
+- **Test Status**
+  - ✅ TypeScript compilation: 0 errors
+  - ✅ Build: 318ms, 146.27 KB gzipped
+  - ⏳ Unit tests: TODO (Vitest setup)
+  - ⏳ E2E tests: TODO (Playwright setup)
+  - ⏳ Coverage target: >70% (per CLAUDE.md)
+
+- **Security**
+  - ✅ JWT tokens in localStorage (access + refresh)
+  - ✅ Token refresh interceptor (auto-retry on 401)
+  - ✅ Protected routes (ProtectedRoute guard)
+  - ✅ File upload validation (type, size)
+  - ✅ No .env o credentials committati
+  - ✅ No dangerouslySetInnerHTML con input utente
+  - ✅ External links con rel="noopener noreferrer"
+  - ⏳ Security audit OWASP ASVS L2: TODO
+
+- **Documentazione**
+  - ✅ JSDoc comments su tutti i componenti exported
+  - ⏳ README.md: frontend setup instructions TODO
+  - ⏳ FRONTEND_ARCHITECTURE.md: TODO
+  - ⏳ SECURITY_AUDIT_FASE_4.md: TODO
+
 ### Fase 3.4 — PHP Proxy Routes to Rust Engine (2026-04-23)
 - ProxyController (`php-gateway/src/Controller/ProxyController.php`)
   - POST /api/query — RAG query endpoint con hybrid search
