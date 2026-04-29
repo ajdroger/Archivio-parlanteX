@@ -157,7 +157,7 @@ services:
     image: mysql:8.0
     container_name: archivio-mysql
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./db/migrations:/docker-entrypoint-initdb.d:ro

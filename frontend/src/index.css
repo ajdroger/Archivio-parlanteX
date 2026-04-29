@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@theme {
+  /* Legal tech dark neon theme */
+  --color-primary: #00ff9f;
+  --color-primary-50: #e6fff7;
+  --color-primary-100: #b3ffe6;
+  --color-primary-200: #80ffd5;
+  --color-primary-300: #4dffc4;
+  --color-primary-400: #1affb3;
+  --color-primary-500: #00ff9f;
+  --color-primary-600: #00cc7f;
+  --color-primary-700: #00995f;
+  --color-primary-800: #00663f;
+  --color-primary-900: #003320;
+
+  --color-dark: #0a0f1a;
+  --color-dark-50: #1a2332;
+  --color-dark-100: #141b28;
+  --color-dark-200: #0f1420;
+  --color-dark-300: #0a0f1a;
+  --color-dark-400: #060a12;
+  --color-dark-500: #03050a;
+}
+
+body {
+  @apply bg-dark text-gray-100 antialiased min-h-screen m-0;
+}
+
+#root {
+  @apply min-h-screen;
+}

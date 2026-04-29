@@ -4,9 +4,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Stack: Rust + Python + PHP](https://img.shields.io/badge/Stack-Rust%20%2B%20Python%20%2B%20PHP-blue)](https://github.com)
-[![Status: Fase 1.3 ✅](https://img.shields.io/badge/Status-Fase%201.3%20%E2%9C%85-green)](./CHANGELOG.md)
+[![Status: Fase 4 ✅](https://img.shields.io/badge/Status-Fase%204%20%E2%9C%85-green)](./CHANGELOG.md)
 
-> **📍 Status Progetto**: Fase 1.3 (Ingestion Pipeline End-to-End) completata — pipeline completo parse→chunk→contextualize→embed→store Qdrant, validazione MIME, batched embeddings, per-KB collections. Prossimo: Fase 1.4 (Hybrid Search + Reranker).
+> **📍 Status Progetto**: Fase 4 (Frontend Multi-Contract UI) completata — React 18 + Vite + TypeScript frontend con chat RAG, confronto multi-contratto, gestione documenti, selezione LLM provider. Bundle 146KB gzipped. Prossimo: Fase 5 (Advanced Features - Graph RAG, Hallucination Detection).
 
 ---
 
@@ -97,6 +97,201 @@ Accedi all'UI: **http://localhost:8080**
 | `make bench` | Esegue benchmark (ingest, query, hallucination, concurrent) |
 | `make mysql-shell` | Connessione shell MySQL |
 | `make backup-db` | Backup database |
+
+---
+
+## ⚛️ Frontend Development
+
+Il frontend è una Single Page Application (SPA) React 18 con Vite, TypeScript e TailwindCSS v4.
+
+### Setup Locale
+
+```bash
+cd frontend
+
+# Installa dipendenze
+npm install
+
+# Avvia dev server (con HMR)
+npm run dev
+# UI disponibile su http://localhost:5173
+
+# Build per produzione
+npm run build
+# Output in dist/ (146KB gzipped)
+
+# Preview build di produzione
+npm run preview
+
+# Lint e format
+npm run lint
+npm run format
+
+# Test TypeScript compilation
+npx tsc --noEmit
+```
+
+### Variabili d'Ambiente Frontend
+
+Crea `frontend/.env.local` (escluso da git):
+
+```env
+# Base URL del backend (default: /api)
+VITE_API_BASE_URL=http://localhost:8080/api
+
+# Se backend su porta diversa o dominio diverso
+# VITE_API_BASE_URL=https://api.archivioparlante.com/api
+```
+
+### Struttura Frontend
+
+```
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── auth/           # ProtectedRoute
+│   │   ├── chat/           # ChatMessage, ContextViewer
+│   │   ├── comparison/     # ContractComparison
+│   │   ├── documents/      # DocumentSelector, DocumentUpload
+│   │   ├── layout/         # MainLayout
+│   │   └── settings/       # ModelSelector
+│   ├── pages/              # Dashboard, Documents, Compare, Analytics, Admin, Login
+│   ├── store/              # Zustand stores (authStore, appStore)
+│   ├── lib/                # API client (Axios)
+│   ├── types/              # TypeScript interfaces
+│   └── App.tsx             # React Router setup
+├── public/                 # Static assets
+├── dist/                   # Build output (gitignored)
+└── package.json
+```
+
+### Stack Frontend
+
+| Libreria | Versione | Uso |
+|---|---|---|
+| React | 19.2.5 | UI framework |
+| Vite | 8.0.10 | Build tool |
+| TypeScript | 6.0.2 | Type safety |
+| TailwindCSS | 4.2.4 | Styling |
+| React Router | 7.14.2 | Routing |
+| Zustand | 5.0.12 | State management |
+| Axios | 1.15.2 | HTTP client |
+| react-markdown | 10.1.0 | Markdown rendering |
+| lucide-react | 1.11.0 | Icons |
+| @tanstack/react-query | 5.100.5 | Data fetching (future) |
+
+### Comandi npm
+
+| Comando | Descrizione |
+|---|---|
+| `npm run dev` | Dev server con HMR (porta 5173) |
+| `npm run build` | Build produzione (output in dist/) |
+| `npm run preview` | Preview build locale |
+| `npm run lint` | ESLint check |
+| `npm run format` | Prettier format |
+| `npm run test` | Unit tests (Vitest) *(TODO)* |
+| `npm run test:e2e` | E2E tests (Playwright) *(TODO)* |
+
+### Flusso di Sviluppo
+
+1. **Backend running**: Assicurati che `make up` sia attivo (backend su porta 8080)
+2. **Frontend dev**: `cd frontend && npm run dev` (porta 5173)
+3. **Proxy dev**: Vite proxya richieste `/api/*` a `http://localhost:8080` (vedi `vite.config.ts`)
+4. **Hot Reload**: Modifiche ai componenti si riflettono immediatamente
+5. **Build + Test**: `npm run build && npm run preview` per testare build di produzione
+
+### Note Importanti
+
+- **CORS**: Backend deve accettare richieste da `http://localhost:5173` in dev
+- **JWT Tokens**: Salvati in `localStorage` (chiavi: `access_token`, `refresh_token`)
+- **Theme**: Dark mode di default con palette neon (#00ff9f primary, #0a0f1a background)
+- **Responsive**: Breakpoints Tailwind (sm, md, lg, xl) già configurati
+- **Accessibility**: Tutti i componenti con aria-labels e keyboard navigation
+
+---
+
+## 🔌 API Endpoints
+
+Tutti gli endpoint richiedono autenticazione JWT (header `Authorization: Bearer <token>`).
+
+### POST /api/query
+Query RAG con hybrid search + reranking + LLM response generation.
+
+**Request:**
+```json
+{
+  "kb_id": "contracts_2024",
+  "query": "Quali sono le penali previste per inadempimento?",
+  "top_k": 10,
+  "rerank_top_n": 5
+}
+```
+
+**Response:**
+```json
+{
+  "answer": "Le penali previste sono...",
+  "sources": [
+    {
+      "doc_id": "contract_001",
+      "chunk_id": "abc123",
+      "text_quote": "...",
+      "confidence": 0.92
+    }
+  ],
+  "verified": true
+}
+```
+
+### POST /api/ingest
+Ingest documento in knowledge base (parsing + chunking + embedding + Qdrant storage).
+
+**Request:**
+```json
+{
+  "doc_id": "contract_001",
+  "kb_id": "contracts_2024",
+  "file_path": "/shared/uploads/contract_001.pdf",
+  "mime_type": "application/pdf"
+}
+```
+
+**Response:**
+```json
+{
+  "doc_id": "contract_001",
+  "chunk_count": 42,
+  "processing_time_ms": 3450,
+  "status": "indexed"
+}
+```
+
+### POST /api/compare
+Confronto multi-contratto con analisi comparativa.
+
+**Request:**
+```json
+{
+  "kb_id": "contracts_2024",
+  "doc_ids": ["contract_001", "contract_002", "contract_003"],
+  "comparison_aspects": ["penalties", "payment_terms", "termination_clauses"]
+}
+```
+
+**Response:**
+```json
+{
+  "comparison_table": "| Aspetto | Contract 001 | Contract 002 | ...",
+  "key_differences": ["..."],
+  "information_gaps": [],
+  "verified": true
+}
+```
+
+**Protezioni:**
+- Rate limiting: 100 req/min per utente
+- Audit logging: tutti gli eventi (success/failed) loggati
+- Validazione: MIME type whitelist, length limits, business rules
 
 ---
 
@@ -197,7 +392,7 @@ Progetto interno. Per modifiche:
 
 ## 📄 Licenza
 
-[MIT License](./LICENSE) — Copyright (c) 2025 Archivio Parlante Team
+[MIT License](./LICENSE) — Copyright (c) 2026 Archivio Parlante Team
 
 ---
 
