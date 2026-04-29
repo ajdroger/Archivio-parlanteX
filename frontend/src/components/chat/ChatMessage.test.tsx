@@ -91,4 +91,22 @@ describe('ChatMessage', () => {
     const botIcon = container.querySelector('.lucide-bot');
     expect(botIcon).toBeInTheDocument();
   });
+
+  it('renders links correctly with external link attributes', () => {
+    render(
+      <ChatMessage
+        message="Check this [external link](https://example.com) and this [anchor](#section)"
+        role="assistant"
+      />
+    );
+
+    const externalLink = screen.getByText('external link');
+    expect(externalLink.tagName).toBe('A');
+    expect(externalLink).toHaveAttribute('target', '_blank');
+    expect(externalLink).toHaveAttribute('rel', 'noopener noreferrer');
+
+    const anchorLink = screen.getByText('anchor');
+    expect(anchorLink.tagName).toBe('A');
+    expect(anchorLink).not.toHaveAttribute('target');
+  });
 });

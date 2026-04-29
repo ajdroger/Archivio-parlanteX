@@ -76,6 +76,33 @@ describe('appStore', () => {
     });
   });
 
+  describe('setDocuments', () => {
+    it('sets the documents list', () => {
+      const mockDocs = [
+        {
+          id: 'doc_1',
+          source_name: 'contract1.pdf',
+          kb_id: '1',
+          status: 'indexed' as const,
+          created_at: '2024-01-01',
+        },
+        {
+          id: 'doc_2',
+          source_name: 'contract2.pdf',
+          kb_id: '1',
+          status: 'processing' as const,
+          created_at: '2024-01-02',
+        },
+      ];
+
+      useAppStore.getState().setDocuments(mockDocs);
+
+      const state = useAppStore.getState();
+      expect(state.documents).toEqual(mockDocs);
+      expect(state.documents).toHaveLength(2);
+    });
+  });
+
   describe('toggleDocSelection', () => {
     it('adds document ID if not already selected', () => {
       useAppStore.getState().toggleDocSelection('doc_1');
@@ -165,6 +192,91 @@ describe('appStore', () => {
 
       const state = useAppStore.getState();
       expect(state.comparisonLoading).toBe(false);
+    });
+  });
+
+  describe('setComparisonPhase', () => {
+    it('sets comparison phase', () => {
+      useAppStore.getState().setComparisonPhase('analyzing');
+
+      const state = useAppStore.getState();
+      expect(state.comparisonPhase).toBe('analyzing');
+    });
+
+    it('clears comparison phase when null', () => {
+      useAppStore.setState({ comparisonPhase: 'analyzing' });
+
+      useAppStore.getState().setComparisonPhase(null);
+
+      const state = useAppStore.getState();
+      expect(state.comparisonPhase).toBeNull();
+    });
+  });
+
+  describe('setComparisonError', () => {
+    it('sets comparison error', () => {
+      useAppStore.getState().setComparisonError('Comparison failed');
+
+      const state = useAppStore.getState();
+      expect(state.comparisonError).toBe('Comparison failed');
+    });
+
+    it('clears comparison error when null', () => {
+      useAppStore.setState({ comparisonError: 'Error' });
+
+      useAppStore.getState().setComparisonError(null);
+
+      const state = useAppStore.getState();
+      expect(state.comparisonError).toBeNull();
+    });
+  });
+
+  describe('clearComparison', () => {
+    it('clears all comparison state', () => {
+      useAppStore.setState({
+        comparisonResult: {
+          comparison: 'Test',
+          key_differences: [],
+          sources: [],
+          information_gaps: [],
+        },
+        comparisonLoading: true,
+        comparisonPhase: 'analyzing',
+        comparisonError: 'Error',
+      });
+
+      useAppStore.getState().clearComparison();
+
+      const state = useAppStore.getState();
+      expect(state.comparisonResult).toBeNull();
+      expect(state.comparisonLoading).toBe(false);
+      expect(state.comparisonPhase).toBeNull();
+      expect(state.comparisonError).toBeNull();
+    });
+  });
+
+  describe('setProviders', () => {
+    it('sets LLM providers list', () => {
+      const mockProviders = [
+        {
+          id: 'ollama',
+          name: 'Ollama (Local)',
+          models: [],
+          is_available: true,
+        },
+        {
+          id: 'anthropic',
+          name: 'Anthropic',
+          models: [],
+          is_available: false,
+        },
+      ];
+
+      useAppStore.getState().setProviders(mockProviders);
+
+      const state = useAppStore.getState();
+      expect(state.providers).toEqual(mockProviders);
+      expect(state.providers).toHaveLength(2);
     });
   });
 
