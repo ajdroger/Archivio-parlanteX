@@ -136,6 +136,7 @@ async fn run() -> anyhow::Result<()> {
             .allow_credentials(true)
     };
 
+
     // Build final router with public + protected routes
     let app = Router::new()
         // Public routes (no auth required)
