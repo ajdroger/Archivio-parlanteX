@@ -202,7 +202,7 @@ impl MultiContractComparator {
             let sample = chunks
                 .iter()
                 .take(3)
-                .map(|c| &c.text)
+                .map(|c| c.text.as_str())
                 .collect::<Vec<_>>()
                 .join("\n\n");
 
@@ -330,7 +330,7 @@ JSON:"#,
         let context = chunks
             .iter()
             .take(5)
-            .map(|c| &c.text)
+            .map(|c| c.text.as_str())
             .collect::<Vec<_>>()
             .join("\n\n");
 

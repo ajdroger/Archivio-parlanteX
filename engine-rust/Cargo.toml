@@ -39,13 +39,13 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 # Qdrant client (sarà usato in Fase 1)
-qdrant-client = "1.12"
+qdrant-client = "1.10"
 
 # UUID
 uuid = { version = "1.11", features = ["v4", "serde"] }
 
 # Date/Time
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 
 # Environment
 dotenvy = "0.15"
@@ -67,11 +67,11 @@ prometheus = "0.13"
 lazy_static = "1.4"
 
 # OpenAPI documentation
-utoipa = { version = "5", features = ["axum_extras"] }
+utoipa = { version = "5", features = ["axum_extras", "chrono"] }
 utoipa-swagger-ui = { version = "8", features = ["axum"] }
 
 [profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
+opt-level = 2
+lto = false
+codegen-units = 16
 strip = true

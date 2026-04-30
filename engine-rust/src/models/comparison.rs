@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Complete comparison result
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ComparisonResult {
     /// Aspects being compared (e.g., "Durata", "Penali", "Foro competente")
     pub aspects: Vec<ComparisonAspect>,
@@ -23,7 +23,7 @@ pub struct ComparisonResult {
 }
 
 /// Single aspect across multiple contracts
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ComparisonAspect {
     /// Aspect name (e.g., "Durata del contratto")
     pub name: String,
@@ -37,7 +37,7 @@ pub struct ComparisonAspect {
 }
 
 /// Evidence cell for one document in one aspect
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ComparisonCell {
     /// Document ID
     pub doc_id: String,
@@ -236,7 +236,7 @@ impl ComparisonResult {
 }
 
 /// Request for contract comparison
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CompareRequest {
     /// Knowledge base ID
     pub kb_id: String,
@@ -253,7 +253,7 @@ pub struct CompareRequest {
 }
 
 /// Response for contract comparison
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct CompareResponse {
     /// Markdown-formatted result
     pub markdown_result: String,

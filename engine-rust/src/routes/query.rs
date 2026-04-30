@@ -11,7 +11,7 @@ use crate::rag::hybrid_search::HybridSearcher;
 use crate::routes::ingest::AppState;
 
 /// Query request
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct QueryRequest {
     /// User query text
     pub query: String,
@@ -29,7 +29,7 @@ fn default_top_k() -> usize {
 }
 
 /// Query response
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct QueryResponse {
     /// Search results (reranked and scored)
     pub results: Vec<SearchResult>,
@@ -42,7 +42,7 @@ pub struct QueryResponse {
 }
 
 /// Search result item
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct SearchResult {
     /// Chunk ID (UUID)
     pub chunk_id: String,

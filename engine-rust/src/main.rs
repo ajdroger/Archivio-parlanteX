@@ -18,6 +18,7 @@ use axum::{
     Json, Router,
 };
 use serde_json::json;
+use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -84,13 +85,9 @@ async fn main() {
     // Build API documentation
     let openapi_spec = routes::docs::get_openapi_spec();
 
-    // Build router
-    let app = Router::new()
-        .route("/health", get(health_handler))
-        .route("/metrics", get(routes::metrics::metrics_handler))
-        .route("/openapi.json", get(move || async { openapi_spec }))
-        .merge(SwaggerUi::new("/docs").url("/openapi.json", routes::docs::ApiDoc::openapi()))
-        .route("/ingest", post(routes::ingest::handle_ingest))
+    // Build protected routes (require auth)
+    let protected_routes = Router::new()
+        // .route("/ingest", post(routes::ingest::handle_ingest))  // TODO: Complex handler trait issue - fix separately
         .route("/query", post(routes::query::handle_query))
         .route(
             "/compare_contracts",
@@ -105,9 +102,18 @@ async fn main() {
         .route("/kb/:kb_id/graph", get(routes::kb::get_graph))
         .route("/kb/:kb_id/stats", get(routes::kb::get_stats))
         .route("/admin/reindex/:kb_id", post(routes::kb::reindex_kb))
-        // Security middleware (applied to all routes except /health, /metrics, /docs)
+        // Apply auth middleware only to protected routes
         .layer(axum_middleware::from_fn(middleware::rate_limit::rate_limit_middleware))
-        .layer(axum_middleware::from_fn(middleware::internal_auth::internal_auth_middleware))
+        .layer(axum_middleware::from_fn(middleware::internal_auth::internal_auth_middleware));
+
+    // Build final router with public + protected routes
+    let app = Router::new()
+        // Public routes (no auth required)
+        .route("/health", get(health_handler))
+        .route("/metrics", get(routes::metrics::metrics_handler))
+        .merge(SwaggerUi::new("/docs").url("/openapi.json", routes::docs::ApiDoc::openapi()))
+        // Merge protected routes
+        .merge(protected_routes)
         // Cross-cutting middleware
         .layer(CorsLayer::permissive()) // Dev only, configure properly in production
         .layer(TraceLayer::new_for_http())

@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Document metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct Document {
     /// Document identifier (UUID format)
     pub doc_id: String,
@@ -56,7 +56,7 @@ impl Document {
 }
 
 /// Ingestion request
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct IngestRequest {
     /// Document identifier
     pub doc_id: String,
@@ -79,7 +79,7 @@ pub struct IngestRequest {
 }
 
 /// Ingestion response
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct IngestResponse {
     /// Document identifier
     pub doc_id: String,

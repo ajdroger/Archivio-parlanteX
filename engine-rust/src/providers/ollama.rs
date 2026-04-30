@@ -252,7 +252,8 @@ impl LlmProvider for OllamaProvider {
         let url = self.api_url("embeddings");
 
         // Ollama only supports one text per request, batch manually
-        let mut embeddings = Vec::with_capacity(texts.len());
+        let texts_count = texts.len();
+        let mut embeddings = Vec::with_capacity(texts_count);
 
         for text in texts {
             let req = OllamaEmbedRequest {
@@ -283,7 +284,7 @@ impl LlmProvider for OllamaProvider {
             embeddings.push(resp.embedding);
         }
 
-        tracing::debug!(texts_count = texts.len(), "Ollama embeddings generated");
+        tracing::debug!(texts_count, "Ollama embeddings generated");
 
         Ok(embeddings)
     }
