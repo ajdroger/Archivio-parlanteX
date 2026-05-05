@@ -11,7 +11,7 @@ mod utils;
 
 use axum::{
     extract::State,
-    http::StatusCode,
+    http::{StatusCode, Method, HeaderValue},
     middleware as axum_middleware,
     response::IntoResponse,
     routing::{delete, get, post},
@@ -23,11 +23,12 @@ use utoipa_swagger_ui::SwaggerUi;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::{
-    cors::CorsLayer,
+    cors::{CorsLayer, Any},
     trace::TraceLayer,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+use anyhow::Context;
 use clients::python_worker::PythonWorkerClient;
 use config::Config;
 use providers::registry::LlmRegistry;
@@ -35,6 +36,13 @@ use routes::ingest::AppState;
 
 #[tokio::main]
 async fn main() {
+    if let Err(e) = run().await {
+        eprintln!("Fatal error: {:#}", e);
+        std::process::exit(1);
+    }
+}
+
+async fn run() -> anyhow::Result<()> {
     // Initialize structured JSON logging
     let log_format = std::env::var("LOG_FORMAT").unwrap_or_else(|_| "pretty".to_string());
 
@@ -62,7 +70,8 @@ async fn main() {
     routes::metrics::init_metrics();
 
     // Load configuration
-    let config = Config::from_env().expect("Failed to load configuration");
+    let config = Config::from_env()
+        .context("Failed to load configuration from environment")?;
     tracing::info!(
         listen_addr = %config.listen_addr,
         ollama_url = %config.ollama_url,
@@ -106,6 +115,27 @@ async fn main() {
         .layer(axum_middleware::from_fn(middleware::rate_limit::rate_limit_middleware))
         .layer(axum_middleware::from_fn(middleware::internal_auth::internal_auth_middleware));
 
+    // Configure CORS with allowed origins from config
+    let cors_layer = if config.cors_origins.iter().any(|o| o == "*") {
+        // Wildcard: allow all (dev mode only, validated in config.rs)
+        CorsLayer::permissive()
+    } else {
+        // Specific origins with explicit headers (cannot use Any with credentials)
+        let allowed_origins: Vec<HeaderValue> = config.cors_origins.iter()
+            .filter_map(|o| o.parse().ok())
+            .collect();
+
+        CorsLayer::new()
+            .allow_origin(allowed_origins)
+            .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
+            .allow_headers([
+                axum::http::header::CONTENT_TYPE,
+                axum::http::header::AUTHORIZATION,
+                axum::http::header::HeaderName::from_static("x-internal-token"),
+            ])
+            .allow_credentials(true)
+    };
+
     // Build final router with public + protected routes
     let app = Router::new()
         // Public routes (no auth required)
@@ -115,7 +145,7 @@ async fn main() {
         // Merge protected routes
         .merge(protected_routes)
         // Cross-cutting middleware
-        .layer(CorsLayer::permissive()) // Dev only, configure properly in production
+        .layer(cors_layer)
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
@@ -123,22 +153,23 @@ async fn main() {
     let addr = config
         .listen_addr
         .parse::<SocketAddr>()
-        .expect("Invalid listen address");
+        .context("Invalid listen address format")?;
     tracing::info!("🚀 Listening on {}", addr);
 
     // Start server with graceful shutdown
     let listener = tokio::net::TcpListener::bind(addr)
         .await
-        .expect("Failed to bind address");
+        .with_context(|| format!("Failed to bind to {}", addr))?;
 
     tracing::info!("Server ready, press Ctrl+C to shutdown gracefully");
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
-        .expect("Server error");
+        .context("Server encountered fatal error")?;
 
     tracing::info!("Server shutdown complete");
+    Ok(())
 }
 
 /// Graceful shutdown signal handler

@@ -6,10 +6,14 @@ Handles image-based text extraction for scanned PDFs and images.
 
 import asyncio
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import pytesseract
 import structlog
-from PIL import Image
+
+# Lazy import PIL and pytesseract (not in minimal install)
+if TYPE_CHECKING:
+    from PIL import Image
+    import pytesseract
 
 from app.config import settings
 
@@ -21,7 +25,7 @@ class OCRService:
 
     async def extract_text(self, image_path: str) -> str:
         """
-        Extract text from image using OCR
+        Extract text from image using OCR (requires pytesseract)
 
         Args:
             image_path: Path to image file
@@ -29,6 +33,16 @@ class OCRService:
         Returns:
             Extracted text
         """
+        # Lazy import pytesseract and PIL
+        try:
+            import pytesseract
+            from PIL import Image
+        except ImportError as e:
+            logger.error("ocr_dependencies_not_installed", error=str(e))
+            raise RuntimeError(
+                "OCR dependencies not installed. Run: pip install pytesseract Pillow"
+            ) from e
+
         path = Path(image_path)
 
         if not path.exists():

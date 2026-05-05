@@ -25,9 +25,11 @@ pub async fn internal_auth_middleware(
     let expected_token = std::env::var("RUST_ENGINE_INTERNAL_TOKEN")
         .unwrap_or_else(|_| String::new());
 
-    // If no token configured, allow (dev mode)
+    // If no token configured, allow (dev mode only - production enforces via config validation)
     if expected_token.is_empty() {
-        tracing::warn!("RUST_ENGINE_INTERNAL_TOKEN not set - authentication bypassed");
+        tracing::error!(
+            "⚠️  SECURITY: RUST_ENGINE_INTERNAL_TOKEN not set - authentication BYPASSED (dev mode only)"
+        );
         return Ok(next.run(request).await);
     }
 
