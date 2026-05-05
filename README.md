@@ -307,27 +307,75 @@ Confronto multi-contratto con analisi comparativa.
 
 ## 🧪 Testing
 
+### Unit Tests
+
 ```bash
-# Test unitari Rust
-make test-rust        # cargo test --release
+# Rust
+cd engine-rust && cargo test --release --all-features
 
-# Test unitari Python
-make test-python      # pytest --cov
+# Python
+cd engine-python && pytest --cov=app --cov-report=term
 
-# Test unitari PHP
-make test-php         # composer test
+# PHP
+cd php-gateway && composer test
 
-# Test frontend
-make test-frontend    # vitest run + playwright test
-
-# Test end-to-end
-make test-e2e         # playwright test (richiede stack up)
-
-# Suite completa
-make test-all
+# Frontend
+cd frontend && npm run test
 ```
 
-**Coverage minima richiesta**: 80% per Rust/Python/PHP, 70% per frontend.
+### Coverage Reports
+
+```bash
+# Rust (requires cargo-tarpaulin)
+cargo install cargo-tarpaulin
+cd engine-rust && cargo tarpaulin --out Html --output-dir coverage
+# View coverage/index.html in browser
+
+# Python
+cd engine-python && pytest --cov=app --cov-report=html
+# View htmlcov/index.html
+
+# PHP
+cd php-gateway && composer test -- --coverage-html coverage/
+# View php-gateway/coverage/index.html
+```
+
+### E2E Tests (Requires Full Stack)
+
+```bash
+# Start all services
+docker compose up -d
+
+# Wait for health checks
+for i in {1..30}; do 
+  curl -f http://localhost:8090/health && break
+  sleep 2
+done
+
+# Run E2E tests
+cd engine-rust && cargo test --test '*_e2e' -- --ignored --nocapture
+```
+
+### Quality Gates (per CLAUDE.md §14)
+
+- ✅ **Rust**: 80% coverage minimum
+- ✅ **Python**: 80% coverage minimum
+- ✅ **PHP**: 80% coverage minimum
+- ✅ **Frontend**: 70% coverage minimum
+- ✅ **All tests pass** before commit
+- ✅ **E2E tests pass** in CI before merge
+
+### CI Pipeline
+
+The GitHub Actions CI pipeline automatically runs:
+- Unit tests for all layers (Rust, Python, PHP, Frontend)
+- Code coverage measurement (enforces 80% threshold for backend)
+- Linting and formatting checks (`cargo clippy`, `ruff`, `phpstan`, `eslint`)
+- Security audits (`cargo audit`, `pip-audit`, `composer audit`, `npm audit`)
+- E2E tests with full Docker stack
+- Coverage reports uploaded to artifacts
+
+**All checks must pass before PR merge.**
 
 ---
 

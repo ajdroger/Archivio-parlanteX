@@ -255,6 +255,7 @@ async fn test_contextual_enrichment() {
     let ollama = Arc::new(OllamaProvider::new(
         std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string()),
         8,
+        "nomic-embed-text".to_string(),
     ));
 
     let enricher = ContextualRetrievalEnricher::new(

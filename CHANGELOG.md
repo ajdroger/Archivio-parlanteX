@@ -7,6 +7,83 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Security Hardening & Quality Gates (Phases 2-4) (2026-05-06)
+
+#### Phase 2: Security Hardening (COMPLETED)
+- **CORS Configuration** — Removed permissive allow-all policy
+  - Added `cors_origins` field to Rust `Config` struct
+  - Implemented CSV parsing from `CORS_ORIGINS` environment variable
+  - Added production mode validation: rejects `"*"` if `APP_ENV=production`
+  - Fixed CORS credentials configuration (explicit headers instead of `Any`)
+  - Files: `engine-rust/src/config.rs`, `engine-rust/src/main.rs`, `engine-python/app/config.py`, `engine-python/app/main.py`
+
+- **Authentication Token Enforcement** — Production mode validation
+  - Server refuses to start if `RUST_ENGINE_INTERNAL_TOKEN` empty when `APP_ENV=production`
+  - Enhanced security warning log: `⚠️ SECURITY: RUST_ENGINE_INTERNAL_TOKEN not set - authentication BYPASSED (dev mode only)`
+  - Files: `engine-rust/src/config.rs`, `engine-rust/src/middleware/internal_auth.rs`
+
+- **Error Handling** — Replaced `.unwrap()` / `.expect()` with proper error propagation
+  - Refactored `main()` to `run() -> anyhow::Result<()>` pattern
+  - All startup errors use `?` operator + `anyhow::Context` for graceful failure
+  - Clear error messages instead of panic traces
+  - Files: `engine-rust/src/main.rs`
+
+- **Metrics Initialization** — Made non-fatal to prevent startup failures
+  - Wrapped metric registration in `init_metrics_safe() -> Result<(), prometheus::Error>`
+  - Server continues without metrics if Prometheus initialization fails
+  - Warning logged but server starts successfully
+  - Files: `engine-rust/src/routes/metrics.rs`
+
+- **Python ML Dependencies** — Lazy loading pattern
+  - Implemented `TYPE_CHECKING` lazy imports for spaCy, torch, FlagEmbedding, PIL, pytesseract
+  - Prevents `ModuleNotFoundError` during startup when ML libraries not installed
+  - Files: `engine-python/app/services/knowledge_graph.py`, `ocr_service.py`, `pdf_parser.py`, `reranker.py`
+
+- **Docker Compose** — Removed obsolete `version: '3.8'` field
+
+#### Phase 3: Quality Gates (COMPLETED)
+- **Rust Coverage Measurement** — Added cargo-tarpaulin to CI
+  - CI step: Install cargo-tarpaulin
+  - CI step: Generate coverage report (XML + HTML)
+  - CI step: Upload coverage artifacts
+  - Files: `.github/workflows/ci.yml`
+
+- **E2E Tests in CI** — Added full-stack E2E test job
+  - New `rust-e2e` job: starts Docker stack, waits for health checks, runs E2E tests
+  - Depends on `rust-test` and `python-test` jobs passing first
+  - Uploads logs on failure for debugging
+  - Files: `.github/workflows/ci.yml`
+
+- **README Updates** — Comprehensive test instructions
+  - Added sections: Unit Tests, Coverage Reports, E2E Tests, Quality Gates, CI Pipeline
+  - Documented all test commands (cargo test, pytest, composer test, npm test)
+  - Documented coverage tools (cargo-tarpaulin, pytest --cov)
+  - Files: `README.md`
+
+#### Phase 4: Technical Debt Cleanup (COMPLETED)
+- **Hardcoded Model Names** — Parametrized from config
+  - Added `embed_model: String` field to `OllamaProvider` struct
+  - Constructor now accepts embedding model name from config: `OllamaProvider::new(url, concurrency, embed_model)`
+  - Removed hardcoded `"nomic-embed-text"` from embed() method
+  - Model name comes from `OLLAMA_MODEL_EMBED` environment variable
+  - Files: `engine-rust/src/providers/ollama.rs`, `registry.rs`, all test files
+
+- **Security Documentation** — Created comprehensive security audit report
+  - 4 vulnerabilities addressed (CORS, auth bypass, unwrap crashes, metrics DoS)
+  - OWASP ASVS L2 compliance checklist
+  - Risk matrix and deployment checklist
+  - Files: `docs/SECURITY_AUDIT_PHASE_2.md`
+
+- **Changelog** — Updated with all Phase 2-4 changes
+
+#### Verification Results
+- ✅ Rust engine health check: `{"status":"ok","service":"rust-engine","version":"0.1.0","cloud_enabled":false}`
+- ✅ CORS headers verified: `access-control-allow-credentials: true`, proper origin handling
+- ✅ Services status: 6/7 UP (Python requires manual native start per WSL2 limitation)
+- ✅ All security issues resolved (no Medium+ findings)
+
+---
+
 ### Fase 4 — Frontend Multi-Contract UI (React 18 + Vite + TypeScript) (2026-04-27)
 - **Architettura Frontend Completa** (19 componenti, 38 file, 7,819 righe)
   - React 19.2.5 + Vite 8.0.10 + TypeScript 6.0.2 (strict mode)

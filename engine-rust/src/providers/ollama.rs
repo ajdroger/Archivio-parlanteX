@@ -16,6 +16,8 @@ pub struct OllamaProvider {
     client: Client,
     /// Rate limiter (max concurrent requests)
     semaphore: Arc<Semaphore>,
+    /// Embedding model name (from config)
+    embed_model: String,
 }
 
 impl OllamaProvider {
@@ -24,11 +26,13 @@ impl OllamaProvider {
     /// # Arguments
     /// * `base_url` - Ollama API base URL (e.g., http://ollama:11434)
     /// * `max_concurrent` - Max concurrent requests (from config)
-    pub fn new(base_url: String, max_concurrent: usize) -> Self {
+    /// * `embed_model` - Embedding model name (e.g., nomic-embed-text)
+    pub fn new(base_url: String, max_concurrent: usize, embed_model: String) -> Self {
         Self {
             base_url: base_url.trim_end_matches('/').to_string(),
             client: Client::new(),
             semaphore: Arc::new(Semaphore::new(max_concurrent)),
+            embed_model,
         }
     }
 
@@ -257,7 +261,7 @@ impl LlmProvider for OllamaProvider {
 
         for text in texts {
             let req = OllamaEmbedRequest {
-                model: "nomic-embed-text".to_string(), // hardcoded for now, config later
+                model: self.embed_model.clone(),
                 prompt: text.clone(),
             };
 
@@ -354,14 +358,23 @@ mod tests {
 
     #[test]
     fn test_ollama_provider_creation() {
-        let provider = OllamaProvider::new("http://localhost:11434".to_string(), 8);
+        let provider = OllamaProvider::new(
+            "http://localhost:11434".to_string(),
+            8,
+            "nomic-embed-text".to_string(),
+        );
         assert_eq!(provider.name(), "ollama");
         assert_eq!(provider.base_url, "http://localhost:11434");
+        assert_eq!(provider.embed_model, "nomic-embed-text");
     }
 
     #[test]
     fn test_api_url_builder() {
-        let provider = OllamaProvider::new("http://localhost:11434/".to_string(), 8);
+        let provider = OllamaProvider::new(
+            "http://localhost:11434/".to_string(),
+            8,
+            "nomic-embed-text".to_string(),
+        );
         assert_eq!(provider.api_url("chat"), "http://localhost:11434/api/chat");
         assert_eq!(provider.api_url("/tags"), "http://localhost:11434/api/tags");
     }

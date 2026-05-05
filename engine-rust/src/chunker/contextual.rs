@@ -232,7 +232,11 @@ mod tests {
     fn test_enricher_creation() {
         use crate::providers::ollama::OllamaProvider;
 
-        let provider = Arc::new(OllamaProvider::new("http://localhost:11434".to_string(), 8));
+        let provider = Arc::new(OllamaProvider::new(
+            "http://localhost:11434".to_string(),
+            8,
+            "nomic-embed-text".to_string(),
+        ));
         let enricher = ContextualRetrievalEnricher::new(
             provider,
             "qwen2.5:7b".to_string(),
@@ -247,7 +251,11 @@ mod tests {
     fn test_hash_consistency() {
         use crate::providers::ollama::OllamaProvider;
 
-        let provider = Arc::new(OllamaProvider::new("http://localhost:11434".to_string(), 8));
+        let provider = Arc::new(OllamaProvider::new(
+            "http://localhost:11434".to_string(),
+            8,
+            "nomic-embed-text".to_string(),
+        ));
         let enricher = ContextualRetrievalEnricher::new(
             provider,
             "qwen2.5:7b".to_string(),
