@@ -1,12 +1,31 @@
-# Archivio Parlante — Python Worker Minimal Requirements
-# Core dependencies only
+# ============================================================================
+# Archivio Parlante — Python AI Worker Minimal Requirements
+# ============================================================================
+# Solo dipendenze core per far partire il server (senza ML/OCR)
 
+# Web framework
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
+
+# Validation
 pydantic==2.9.2
 pydantic-settings==2.5.0
+
+# HTTP client
 httpx==0.28.0
+
+# Multipart upload
 python-multipart==0.0.12
+
+# Logging
 structlog==24.4.0
+
+# Environment
 python-dotenv==1.0.1
+
+# Retry logic
 tenacity==9.0.0
+
+# NOTE: PDF parsing libs (PyMuPDF, pdfplumber, Pillow) cause segfault in Docker/WSL2
+# They are installed at runtime or via full requirements.txt
+# The service will start but PDF parsing endpoints will fail gracefully
