@@ -144,7 +144,9 @@ async fn run() -> anyhow::Result<()> {
         .merge(SwaggerUi::new("/docs").url("/openapi.json", routes::docs::ApiDoc::openapi()))
         // Merge protected routes
         .merge(protected_routes)
-        // Cross-cutting middleware
+        // Cross-cutting middleware (order matters: inner layers run first)
+        .layer(axum_middleware::from_fn(middleware::security_headers::security_headers_middleware))
+        .layer(axum_middleware::from_fn(middleware::request_validation::request_validation_middleware))
         .layer(cors_layer)
         .layer(TraceLayer::new_for_http())
         .with_state(state);

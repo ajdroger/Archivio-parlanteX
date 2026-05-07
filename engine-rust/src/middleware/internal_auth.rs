@@ -39,15 +39,17 @@ pub async fn internal_auth_middleware(
         .and_then(|v| v.to_str().ok());
 
     match provided_token {
-        Some(token) if token == expected_token => {
-            // Valid token
-            tracing::debug!("Internal auth: token valid");
-            Ok(next.run(request).await)
-        }
-        Some(_) => {
-            // Invalid token
-            tracing::warn!("Internal auth: invalid token provided");
-            Err(StatusCode::UNAUTHORIZED)
+        Some(token) => {
+            // Use constant-time comparison to prevent timing attacks
+            if constant_time_compare(token.as_bytes(), expected_token.as_bytes()) {
+                // Valid token
+                tracing::debug!("Internal auth: token valid");
+                Ok(next.run(request).await)
+            } else {
+                // Invalid token
+                tracing::warn!("Internal auth: invalid token provided");
+                Err(StatusCode::UNAUTHORIZED)
+            }
         }
         None => {
             // Missing token
@@ -55,6 +57,23 @@ pub async fn internal_auth_middleware(
             Err(StatusCode::UNAUTHORIZED)
         }
     }
+}
+
+/// Constant-time string comparison to prevent timing attacks
+///
+/// Compares two byte slices in constant time regardless of content.
+/// This prevents attackers from measuring response time to guess tokens.
+fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+
+    let mut diff = 0u8;
+    for (byte_a, byte_b) in a.iter().zip(b.iter()) {
+        diff |= byte_a ^ byte_b;
+    }
+
+    diff == 0
 }
 
 #[cfg(test)]

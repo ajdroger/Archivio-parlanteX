@@ -217,6 +217,10 @@ class PDFParser:
         chunks = []
         doc = fitz.open(file_path)
 
+        # Sanitize doc_id to prevent path traversal in temp files
+        from app.middleware.security import sanitize_filename
+        safe_doc_id = sanitize_filename(doc_id)
+
         for page_num, page in enumerate(doc, start=1):
             if page_num > settings.pdf_max_pages:
                 logger.warning("max_pages_reached", limit=settings.pdf_max_pages)
@@ -226,8 +230,8 @@ class PDFParser:
             pix = page.get_pixmap(dpi=settings.ocr_dpi)
             img_data = pix.tobytes("png")
 
-            # Save temporarily
-            temp_img_path = f"/tmp/{doc_id}_page_{page_num}.png"
+            # Save temporarily (safe_doc_id prevents directory traversal)
+            temp_img_path = f"/tmp/{safe_doc_id}_page_{page_num}.png"
             with open(temp_img_path, "wb") as f:
                 f.write(img_data)
 

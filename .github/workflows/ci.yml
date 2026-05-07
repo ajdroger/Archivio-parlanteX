@@ -167,33 +167,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Rust - cargo audit
+      - name: Rust - cargo audit (fail on HIGH/CRITICAL)
         working-directory: ./engine-rust
         run: |
-          cargo install cargo-audit || true
-          cargo audit || true
+          cargo install cargo-audit
+          cargo audit --deny warnings
 
-      - name: Python - pip-audit
+      - name: Python - pip-audit (fail on any vulnerability)
         working-directory: ./engine-python
         run: |
           pip install pip-audit
-          pip-audit || true
+          pip-audit --strict
 
-      - name: PHP - composer audit
+      - name: PHP - composer audit (fail on any vulnerability)
         working-directory: ./php-gateway
-        run: composer audit || true
+        run: |
+          composer install --no-dev --prefer-dist
+          composer audit --format=plain
 
-      - name: Frontend - npm audit
+      - name: Frontend - npm audit (fail on HIGH/CRITICAL)
         working-directory: ./frontend
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=high
 
-      - name: Trivy container scan
+      - name: Trivy container scan (fail on HIGH/CRITICAL)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
           severity: 'HIGH,CRITICAL'
-          exit-code: '0'
+          exit-code: '1'
+          ignore-unfixed: true
 
   # === E2E Tests (Full Stack) ===
   rust-e2e:
