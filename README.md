@@ -4,9 +4,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Stack: Rust + Python + PHP](https://img.shields.io/badge/Stack-Rust%20%2B%20Python%20%2B%20PHP-blue)](https://github.com)
-[![Status: Fase 4 ✅](https://img.shields.io/badge/Status-Fase%204%20%E2%9C%85-green)](./CHANGELOG.md)
+[![Status: Fase 5 ✅](https://img.shields.io/badge/Status-Fase%205%20%E2%9C%85-brightgreen)](./CHANGELOG.md)
+[![CI Pipeline](https://github.com/ajdroger/Archivio-parlanteX/workflows/CI%20Pipeline/badge.svg)](https://github.com/ajdroger/Archivio-parlanteX/actions)
+[![Security Audit](https://img.shields.io/badge/Security-ASVS%20L2-success)](./docs/SECURITY_AUDIT_FASE_5.md)
 
-> **📍 Status Progetto**: Fase 4 (Frontend Multi-Contract UI) completata — React 18 + Vite + TypeScript frontend con chat RAG, confronto multi-contratto, gestione documenti, selezione LLM provider. Bundle 146KB gzipped. Prossimo: Fase 5 (Advanced Features - Graph RAG, Hallucination Detection).
+> **📍 Status Progetto**: Fase 5 (Testing, Benchmark & Hardening) completata — Security audit OWASP ASVS L2 (95% compliance), comprehensive test suite (unit + E2E + load testing con k6), observability stack (Prometheus + Grafana), CI/CD con security gates. Production-ready. Prossimo: Fase 6 (Advanced Features - Graph RAG, Hallucination Detection, Multi-tenant).
 
 ---
 
@@ -307,27 +309,75 @@ Confronto multi-contratto con analisi comparativa.
 
 ## 🧪 Testing
 
+### Unit Tests
+
 ```bash
-# Test unitari Rust
-make test-rust        # cargo test --release
+# Rust
+cd engine-rust && cargo test --release --all-features
 
-# Test unitari Python
-make test-python      # pytest --cov
+# Python
+cd engine-python && pytest --cov=app --cov-report=term
 
-# Test unitari PHP
-make test-php         # composer test
+# PHP
+cd php-gateway && composer test
 
-# Test frontend
-make test-frontend    # vitest run + playwright test
-
-# Test end-to-end
-make test-e2e         # playwright test (richiede stack up)
-
-# Suite completa
-make test-all
+# Frontend
+cd frontend && npm run test
 ```
 
-**Coverage minima richiesta**: 80% per Rust/Python/PHP, 70% per frontend.
+### Coverage Reports
+
+```bash
+# Rust (requires cargo-tarpaulin)
+cargo install cargo-tarpaulin
+cd engine-rust && cargo tarpaulin --out Html --output-dir coverage
+# View coverage/index.html in browser
+
+# Python
+cd engine-python && pytest --cov=app --cov-report=html
+# View htmlcov/index.html
+
+# PHP
+cd php-gateway && composer test -- --coverage-html coverage/
+# View php-gateway/coverage/index.html
+```
+
+### E2E Tests (Requires Full Stack)
+
+```bash
+# Start all services
+docker compose up -d
+
+# Wait for health checks
+for i in {1..30}; do 
+  curl -f http://localhost:8090/health && break
+  sleep 2
+done
+
+# Run E2E tests
+cd engine-rust && cargo test --test '*_e2e' -- --ignored --nocapture
+```
+
+### Quality Gates (per CLAUDE.md §14)
+
+- ✅ **Rust**: 80% coverage minimum
+- ✅ **Python**: 80% coverage minimum
+- ✅ **PHP**: 80% coverage minimum
+- ✅ **Frontend**: 70% coverage minimum
+- ✅ **All tests pass** before commit
+- ✅ **E2E tests pass** in CI before merge
+
+### CI Pipeline
+
+The GitHub Actions CI pipeline automatically runs:
+- Unit tests for all layers (Rust, Python, PHP, Frontend)
+- Code coverage measurement (enforces 80% threshold for backend)
+- Linting and formatting checks (`cargo clippy`, `ruff`, `phpstan`, `eslint`)
+- Security audits (`cargo audit`, `pip-audit`, `composer audit`, `npm audit`)
+- E2E tests with full Docker stack
+- Coverage reports uploaded to artifacts
+
+**All checks must pass before PR merge.**
 
 ---
 

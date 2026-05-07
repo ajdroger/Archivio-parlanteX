@@ -1,0 +1,512 @@
+# 🔧 Archivio Parlante — Operational Runbook
+
+**Version**: 1.0  
+**Last Updated**: 2026-05-06  
+**Target Audience**: DevOps, SRE, System Administrators
+
+---
+
+## Table of Contents
+
+1. [System Architecture Overview](#system-architecture-overview)
+2. [Starting & Stopping Services](#starting--stopping-services)
+3. [Health Checks](#health-checks)
+4. [Scaling](#scaling)
+5. [Backup & Restore](#backup--restore)
+6. [Model Management](#model-management)
+7. [Secret Management](#secret-management)
+8. [Troubleshooting](#troubleshooting)
+9. [Monitoring](#monitoring)
+10. [Disaster Recovery](#disaster-recovery)
+
+---
+
+## System Architecture Overview
+
+Archivio Parlante consists of **7 microservices** (6 Docker + 1 native Python):
+
+| Service | Type | Port | Critical | Dependencies |
+|---|---|---|---|---|
+| **php-gateway** | Docker | 9080 | ✅ Yes | mysql, redis, rust-engine |
+| **rust-engine** | Docker | 8090 | ✅ Yes | qdrant, ollama |
+| **python-worker** | **Native** | 8091 | ✅ Yes | ollama (optional) |
+| **qdrant** | Docker | 6335 | ✅ Yes | - |
+| **ollama** | Docker | 11434 | ⚠️ Optional | - |
+| **mysql** | Docker | 3307 | ✅ Yes | - |
+| **redis** | Docker | 6380 | ✅ Yes | - |
+
+**Note**: Python Worker runs **natively on Windows** (not in Docker) due to ML dependency issues.
+
+---
+
+## Starting & Stopping Services
+
+### Start All Services
+
+```bash
+# Start Docker services (6/7)
+make up
+
+# Start Python Worker (native, in separate terminal)
+cd engine-python
+.\venv\Scripts\Activate.ps1
+uvicorn app.main:app --host 0.0.0.0 --port 8091 --reload
+```
+
+### Stop All Services
+
+```bash
+# Stop Docker services
+make down
+
+# Stop Python Worker
+# Press Ctrl+C in the Python worker terminal
+```
+
+### Graceful Shutdown
+
+```bash
+# 1. Stop accepting new requests (update health check to fail)
+curl -X POST http://localhost:8090/admin/drain
+
+# 2. Wait for in-flight requests to complete (30s grace period)
+sleep 30
+
+# 3. Stop services
+make down
+```
+
+### Restart Single Service
+
+```bash
+# Rebuild and restart Rust Engine
+make rebuild-rust
+
+# Rebuild and restart Python Worker
+# (Native: just restart the uvicorn process)
+
+# Restart PHP Gateway
+docker-compose restart php-gateway
+```
+
+---
+
+## Health Checks
+
+### Verify All Services
+
+```bash
+make health
+```
+
+Expected output:
+```
+✓ PHP Gateway: http://localhost:9080 (Apache)
+✓ Rust Engine: {"status":"ok","service":"rust-engine"}
+✓ Python Worker: {"status":"ok","service":"python-worker"}
+✓ Qdrant: {"title":"qdrant","version":"1.12.0"}
+✓ Ollama: Ollama is running
+✓ MySQL: Connected
+✓ Redis: PONG
+```
+
+### Individual Health Checks
+
+```bash
+# PHP Gateway (Apache)
+curl http://localhost:9080
+
+# Rust Engine
+curl http://localhost:8090/health
+
+# Python Worker
+curl http://localhost:8091/health
+
+# Qdrant
+curl http://localhost:6335
+
+# Ollama
+curl http://localhost:11434/api/tags
+
+# MySQL
+docker exec archivio-mysql mysql -uroot -pdevpass123 -e "SELECT 1"
+
+# Redis
+docker exec archivio-redis redis-cli ping
+```
+
+---
+
+## Scaling
+
+### Horizontal Scaling (Multiple Replicas)
+
+#### Scale Rust Engine (stateless)
+
+```yaml
+# docker-compose.override.yml
+services:
+  rust-engine:
+    deploy:
+      replicas: 3
+```
+
+Add load balancer (nginx) in front:
+```nginx
+upstream rust_backend {
+    server localhost:8090;
+    server localhost:8091;
+    server localhost:8092;
+}
+```
+
+#### Scale Python Worker (native)
+
+Run multiple instances on different ports:
+```bash
+# Terminal 1
+uvicorn app.main:app --port 8091
+
+# Terminal 2  
+uvicorn app.main:app --port 8092
+
+# Terminal 3
+uvicorn app.main:app --port 8093
+```
+
+Update Rust Engine to round-robin between workers.
+
+### Vertical Scaling
+
+#### Increase Ollama VRAM
+
+```yaml
+# docker-compose.yml
+ollama:
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: 1
+            capabilities: [gpu]
+      limits:
+        memory: 16G  # Increase if needed
+```
+
+#### Increase Qdrant Memory
+
+```yaml
+qdrant:
+  environment:
+    - QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS=8
+  deploy:
+    resources:
+      limits:
+        memory: 8G
+```
+
+---
+
+## Backup & Restore
+
+### MySQL Backup
+
+```bash
+# Full backup
+make backup-db
+# Output: backups/db_YYYYMMDD_HHMM.sql.gz
+
+# Manual backup
+docker exec archivio-mysql mysqldump -uroot -pdevpass123 \
+  archivio_parlante_x | gzip > backup.sql.gz
+```
+
+### MySQL Restore
+
+```bash
+# From compressed backup
+gunzip < backups/db_20260506_1200.sql.gz | \
+  docker exec -i archivio-mysql mysql -uroot -pdevpass123 archivio_parlante_x
+
+# Or use make command
+make restore-db FILE=backups/db_20260506_1200.sql.gz
+```
+
+### Qdrant Snapshot
+
+```bash
+# Create snapshot
+curl -X POST "http://localhost:6335/collections/contracts_2024/snapshots"
+
+# List snapshots
+curl "http://localhost:6335/collections/contracts_2024/snapshots"
+
+# Download snapshot
+curl "http://localhost:6335/collections/contracts_2024/snapshots/snapshot-2024-05-06.snapshot" \
+  -o qdrant_backup.snapshot
+
+# Restore snapshot
+curl -X PUT "http://localhost:6335/collections/contracts_2024/snapshots/upload" \
+  --data-binary @qdrant_backup.snapshot
+```
+
+### Backup Schedule
+
+**Recommended**:
+- MySQL: Daily at 2 AM (automated via cron)
+- Qdrant: Weekly full snapshot
+- Shared uploads: Sync to S3/backup storage daily
+
+---
+
+## Model Management
+
+### Ollama Model Update
+
+```bash
+# 1. Pull new model version
+docker exec archivio-ollama ollama pull qwen2.5:7b-instruct-q4_K_M
+
+# 2. Test new model
+curl http://localhost:11434/api/generate -d '{
+  "model": "qwen2.5:7b-instruct-q4_K_M",
+  "prompt": "Test query"
+}'
+
+# 3. Update .env
+OLLAMA_MODEL_CHAT=qwen2.5:7b-instruct-q4_K_M
+
+# 4. Restart Rust Engine
+docker-compose restart rust-engine
+
+# 5. (Optional) Reindex if embeddings changed
+# Trigger reindex via admin UI or API
+```
+
+### List Available Models
+
+```bash
+docker exec archivio-ollama ollama list
+```
+
+### Remove Old Models (free space)
+
+```bash
+docker exec archivio-ollama ollama rm qwen2.5:3b-instruct-q4_K_M
+```
+
+---
+
+## Secret Management
+
+### Generate Secrets
+
+```bash
+# JWT Secret (32 bytes hex)
+openssl rand -hex 32
+
+# Rust Engine Internal Token (64 bytes hex)
+openssl rand -hex 64
+```
+
+### Update Secrets
+
+1. **Never commit secrets to git!**
+2. Update `.env` file:
+   ```env
+   JWT_SECRET=<new_32_byte_hex>
+   RUST_ENGINE_INTERNAL_TOKEN=<new_64_byte_hex>
+   ```
+3. Restart services:
+   ```bash
+   make down && make up
+   ```
+
+### Production Secret Management
+
+Use **external secret manager**:
+- AWS Secrets Manager
+- Azure Key Vault
+- HashiCorp Vault
+- Kubernetes Secrets
+
+**Never** store production secrets in `.env` files checked into git.
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### 1. Ollama Out of Memory (OOM)
+
+**Symptoms**: Container crashes, `docker logs archivio-ollama` shows OOM killer.
+
+**Solutions**:
+- Use smaller model: `qwen2.5:3b` instead of `7b`
+- Increase Docker memory limit (Settings → Resources)
+- Enable CPU offload for large models:
+  ```env
+  OLLAMA_MODEL_CHAT_HEAVY=qwen2.5:14b-instruct-q4_K_M  # Uses CPU fallback
+  ```
+
+#### 2. Qdrant Disk Full
+
+**Symptoms**: `curl http://localhost:6335` returns 507 Insufficient Storage.
+
+**Solutions**:
+```bash
+# Check disk usage
+docker exec archivio-qdrant du -sh /qdrant/storage
+
+# Delete old collections
+curl -X DELETE "http://localhost:6335/collections/old_kb_2023"
+
+# Optimize collection (reclaim deleted space)
+curl -X POST "http://localhost:6335/collections/contracts_2024/optimize"
+```
+
+#### 3. Rust Engine Deadlock
+
+**Symptoms**: Requests hang, no response from `:8090/health`.
+
+**Diagnosis**:
+```bash
+# Check logs for panics or deadlocks
+docker logs archivio-rust-engine --tail 100
+
+# Check CPU usage (should be near 100% if busy, 0% if deadlocked)
+docker stats archivio-rust-engine
+```
+
+**Solutions**:
+- Restart container: `docker-compose restart rust-engine`
+- If persists, check for infinite loops in code
+
+#### 4. Python Worker Not Reachable from Docker
+
+**Symptoms**: Rust Engine logs show "Connection refused http://host.docker.internal:8091".
+
+**Solutions**:
+- Verify Python Worker is running: `curl http://localhost:8091/health`
+- Check Windows Firewall allows port 8091
+- Verify `host.docker.internal` resolves:
+  ```bash
+  docker exec archivio-rust-engine ping host.docker.internal
+  ```
+
+#### 5. MySQL Connection Refused
+
+**Symptoms**: PHP/Rust logs show "Connection refused mysql:3306".
+
+**Solutions**:
+```bash
+# Check MySQL is UP
+docker ps | grep mysql
+
+# Check logs
+docker logs archivio-mysql
+
+# Verify credentials
+docker exec archivio-mysql mysql -uroot -pdevpass123 -e "SELECT 1"
+
+# Reset if corrupted
+docker-compose down
+docker volume rm archivio-parlantex_mysql_data
+docker-compose up -d mysql
+make migrate
+```
+
+---
+
+## Monitoring
+
+### Key Metrics to Monitor
+
+| Metric | Tool | Alert Threshold |
+|---|---|---|
+| Rust p95 latency | Prometheus | >5s |
+| Error rate | Logs | >1% |
+| Ollama availability | Health check | Down >1min |
+| Qdrant disk usage | `df -h` | >80% |
+| MySQL connections | `SHOW STATUS` | >100 |
+| Memory usage (Docker) | `docker stats` | >90% |
+
+### Log Access
+
+```bash
+# All services
+make logs
+
+# Single service
+docker logs -f archivio-rust-engine
+
+# Python Worker (native)
+# Check the terminal where uvicorn is running
+```
+
+### Prometheus Metrics (if enabled)
+
+```
+http://localhost:9090/graph
+```
+
+Key queries:
+- `rate(http_requests_total[5m])` - Request rate
+- `histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))` - p95 latency
+- `qdrant_collection_vectors_count` - Vector count per collection
+
+---
+
+## Disaster Recovery
+
+### Scenario 1: Complete Data Loss
+
+**Recovery Steps**:
+1. Restore MySQL from latest backup:
+   ```bash
+   make restore-db FILE=backups/db_latest.sql.gz
+   ```
+2. Restore Qdrant snapshots (per collection)
+3. Reindex missing documents:
+   ```bash
+   # Trigger reindex via admin API
+   curl -X POST http://localhost:8090/admin/reindex \
+     -H "X-Internal-Token: $RUST_ENGINE_INTERNAL_TOKEN"
+   ```
+
+**RTO**: 2-4 hours  
+**RPO**: Last backup (daily = 24h max data loss)
+
+### Scenario 2: Corrupted Qdrant Index
+
+**Recovery**:
+1. Delete corrupted collection
+2. Recreate from MySQL metadata + reindex:
+   ```bash
+   # Via admin UI or API
+   POST /admin/collections/contracts_2024/rebuild
+   ```
+
+### Scenario 3: Ollama Model Corruption
+
+**Recovery**:
+```bash
+docker exec archivio-ollama ollama rm qwen2.5:7b-instruct-q4_K_M
+docker exec archivio-ollama ollama pull qwen2.5:7b-instruct-q4_K_M
+docker-compose restart rust-engine
+```
+
+---
+
+## Contact & Escalation
+
+**On-Call**: [Your on-call rotation]  
+**Incident Channel**: [Slack/Teams channel]  
+**Escalation**: [Email/phone for critical issues]
+
+---
+
+**Last Reviewed**: 2026-05-06  
+**Next Review**: 2026-08-06  

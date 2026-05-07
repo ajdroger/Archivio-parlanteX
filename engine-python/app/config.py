@@ -5,6 +5,7 @@ Uses pydantic-settings for environment variable parsing.
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -13,6 +14,26 @@ class Settings(BaseSettings):
     # App
     app_env: str = "dev"
     app_debug: bool = True
+
+    # CORS
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS_ORIGINS from comma-separated string or list"""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",")]
+        return v
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_production(cls, v, info):
+        """Validate CORS origins in production"""
+        app_env = info.data.get("app_env", "dev")
+        if app_env == "production" and "*" in v:
+            raise ValueError("CORS allow-all (*) forbidden in production mode")
+        return v
 
     # API
     rust_engine_url: str = "http://rust-engine:8090"

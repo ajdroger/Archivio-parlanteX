@@ -31,6 +31,26 @@ pub trait LlmProvider: Send + Sync {
     /// Returns `AppError::Ollama`, `AppError::Internal`, or provider-specific errors
     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse>;
 
+    /// Simple text generation (convenience method)
+    ///
+    /// # Errors
+    /// Returns `AppError::Ollama`, `AppError::Internal`, or provider-specific errors
+    async fn generate(&self, prompt: &str, max_tokens: usize, temperature: f32) -> Result<String> {
+        let request = ChatRequest {
+            model: String::new(), // Provider implementations will override with actual model
+            messages: vec![Message {
+                role: Role::User,
+                content: prompt.to_string(),
+            }],
+            response_format: None,
+            temperature: Some(temperature),
+            max_tokens: Some(max_tokens as u32),
+            stop: None,
+        };
+        let response = self.chat(request).await?;
+        Ok(response.content)
+    }
+
     /// Streaming chat completion (for real-time UX)
     ///
     /// Returns async stream of events (delta text, tool calls, finish reason)

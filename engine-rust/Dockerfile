@@ -4,9 +4,8 @@
 # Multi-stage build for minimal production image
 
 # === Stage 1: Build ===
-# Using rust:latest for edition2024 support (time-core 0.1.8 requires edition2024)
-# Rust 1.88+ has edition2024 stabilized
-FROM rust:latest AS builder
+# Using rust:nightly for edition2024 support required by time-core 0.1.8
+FROM rustlang/rust:nightly AS builder
 
 WORKDIR /build
 
@@ -16,7 +15,8 @@ COPY Cargo.toml Cargo.lock* ./
 # Copy source
 COPY src ./src
 
-# Build release binary
+# Build release binary with increased stack size to avoid SIGSEGV
+ENV RUST_MIN_STACK=16777216
 RUN cargo build --release
 
 # === Stage 2: Runtime ===

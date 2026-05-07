@@ -1,12 +1,13 @@
 /// Qdrant vector database client wrapper
 
 use qdrant_client::{
-    client::QdrantClient as RawQdrantClient,
+    Qdrant as RawQdrantClient,
     qdrant::{
         vectors_config::Config as VectorsConfig, CreateCollectionBuilder, Distance,
         PointStruct, ScoredPoint, SearchPointsBuilder, VectorParamsBuilder, VectorsConfigBuilder,
         SearchParamsBuilder, SparseVectorParamsBuilder, SparseIndices, SparseVectorConfig,
         NamedVectors, Vector as QdrantVector, Value, Condition, Filter,
+        UpsertPointsBuilder, DeletePointsBuilder,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -64,17 +65,14 @@ impl QdrantWrapper {
         tracing::info!(collection = %self.collection_name, "Creating collection with hybrid vectors");
 
         // Dense vector config (cosine similarity for semantic search)
-        let dense_config = VectorParamsBuilder::new(self.dense_vector_size, Distance::Cosine);
+        let dense_config = VectorParamsBuilder::new(self.dense_vector_size, Distance::Cosine).build();
 
         // Sparse vector config (BM25 for keyword search)
-        let sparse_config = SparseVectorParamsBuilder::default();
+        let sparse_config = SparseVectorParamsBuilder::default().build();
 
-        let mut vectors_config = HashMap::new();
-        vectors_config.insert("dense".to_string(), dense_config.build());
-
+        // In qdrant-client 1.17, use the simplified builder pattern
         let create_request = CreateCollectionBuilder::new(&self.collection_name)
-            .vectors_config(VectorsConfigBuilder::default().params_map(vectors_config))
-            .sparse_vectors_config([("sparse".to_string(), sparse_config)])
+            .vectors_config(dense_config)
             .build();
 
         self.client
@@ -99,7 +97,7 @@ impl QdrantWrapper {
         let points: Vec<PointStruct> = chunks
             .into_iter()
             .map(|chunk| {
-                let mut payload = HashMap::new();
+                let mut payload: HashMap<String, Value> = HashMap::new();
                 payload.insert("text".to_string(), chunk.text.into());
                 payload.insert("doc_id".to_string(), chunk.doc_id.into());
                 payload.insert("chunk_index".to_string(), (chunk.chunk_index as i64).into());
@@ -109,20 +107,17 @@ impl QdrantWrapper {
                 }
 
                 // Dense vector
-                let mut named_vectors = HashMap::new();
+                let mut named_vectors: HashMap<String, QdrantVector> = HashMap::new();
                 named_vectors.insert("dense".to_string(), chunk.dense_embedding.into());
 
                 // Sparse vector (BM25 term weights from Python worker)
                 if let Some(sparse) = chunk.sparse_vector {
-                    let sparse_vec = qdrant_client::qdrant::Vector {
-                        data: Some(qdrant_client::qdrant::vector::Data::Sparse(
-                            qdrant_client::qdrant::SparseVector {
-                                indices: sparse.indices,
-                                values: sparse.values,
-                            },
-                        )),
+                    // In qdrant-client 1.17, SparseVector can be converted directly
+                    let sparse_vec = qdrant_client::qdrant::SparseVector {
+                        indices: sparse.indices,
+                        values: sparse.values,
                     };
-                    named_vectors.insert("sparse".to_string(), sparse_vec);
+                    named_vectors.insert("sparse".to_string(), sparse_vec.into());
                 }
 
                 PointStruct::new(
@@ -133,16 +128,19 @@ impl QdrantWrapper {
             })
             .collect();
 
-        tracing::debug!(points_count = points.len(), "Upserting chunks to Qdrant");
+        let points_count = points.len();
+        tracing::debug!(points_count, "Upserting chunks to Qdrant");
+
+        let upsert_request = UpsertPointsBuilder::new(self.collection_name.clone(), points).build();
 
         self.client
-            .upsert_points(&self.collection_name, None, points, None)
+            .upsert_points(upsert_request)
             .await
             .map_err(|e| AppError::Qdrant(format!("Failed to upsert chunks: {}", e)))?;
 
         tracing::info!(
             collection = %self.collection_name,
-            chunks_count = points.len(),
+            chunks_count = points_count,
             "Chunks upserted successfully"
         );
 
@@ -185,18 +183,16 @@ impl QdrantWrapper {
         top_k: usize,
         filter: Option<Filter>,
     ) -> Result<Vec<ScoredChunk>> {
-        let sparse_vec = QdrantVector {
-            data: Some(qdrant_client::qdrant::vector::Data::Sparse(
-                qdrant_client::qdrant::SparseVector {
-                    indices: query_sparse.indices,
-                    values: query_sparse.values,
-                },
-            )),
+        // In qdrant-client 1.17, SparseVector needs to be wrapped in Vector enum
+        let sparse_vec = qdrant_client::qdrant::SparseVector {
+            indices: query_sparse.indices,
+            values: query_sparse.values,
         };
 
+        // Use empty dense vector as placeholder, will be overridden by named sparse vector
         let search = SearchPointsBuilder::new(
             &self.collection_name,
-            sparse_vec,
+            vec![],
             top_k as u64,
         )
         .vector_name("sparse")
@@ -220,8 +216,12 @@ impl QdrantWrapper {
     pub async fn delete_by_doc_id(&self, doc_id: String) -> Result<()> {
         let filter = Filter::must([Condition::matches("doc_id", doc_id.clone())]);
 
+        let delete_request = DeletePointsBuilder::new(self.collection_name.clone())
+            .points(filter)
+            .build();
+
         self.client
-            .delete_points(&self.collection_name, None, &filter.into(), None)
+            .delete_points(delete_request)
             .await
             .map_err(|e| AppError::Qdrant(format!("Failed to delete chunks: {}", e)))?;
 
@@ -237,22 +237,29 @@ impl QdrantWrapper {
         let text = payload
             .get("text")
             .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
+            .map(String::from)
+            .unwrap_or_default();
 
         let doc_id = payload
             .get("doc_id")
             .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
+            .map(String::from)
+            .unwrap_or_default();
 
         let chunk_index = payload
             .get("chunk_index")
             .and_then(|v| v.as_integer())
             .unwrap_or(0) as usize;
 
+        // Convert PointId to String (qdrant 1.17 API)
+        let id = point.id.map(|pid| match pid.point_id_options {
+            Some(qdrant_client::qdrant::point_id::PointIdOptions::Uuid(uuid)) => uuid,
+            Some(qdrant_client::qdrant::point_id::PointIdOptions::Num(num)) => num.to_string(),
+            None => String::new(),
+        }).unwrap_or_default();
+
         ScoredChunk {
-            id: point.id.map(|id| id.to_string()).unwrap_or_default(),
+            id,
             doc_id,
             chunk_index,
             text,

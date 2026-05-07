@@ -14,11 +14,14 @@ Entity types:
 """
 
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, TYPE_CHECKING
 
-import spacy
 import structlog
-from spacy.language import Language
+
+# Lazy import spacy - only load when actually needed (not in minimal install)
+if TYPE_CHECKING:
+    import spacy
+    from spacy.language import Language
 
 from app.config import settings
 
@@ -29,15 +32,24 @@ class KGExtractor:
     """Knowledge graph extractor for Italian legal contracts"""
 
     def __init__(self):
-        self.nlp: Language | None = None
+        self.nlp: "Language | None" = None
         self._initialized = False
 
     def initialize(self) -> None:
-        """Initialize spaCy model"""
+        """Initialize spaCy model (requires spacy to be installed)"""
         if self._initialized:
             return
 
         logger.info("initializing_spacy", model=settings.kg_spacy_model)
+
+        try:
+            # Lazy import spacy
+            import spacy
+        except ImportError as e:
+            logger.error("spacy_not_installed", error=str(e))
+            raise RuntimeError(
+                "spaCy not installed. Run: pip install spacy && python -m spacy download it_core_news_sm"
+            ) from e
 
         try:
             # Load Italian model

@@ -1,0 +1,1 @@
+{"dashboard":{"title":"RAG Pipeline Metrics","panels":[{"id":1,"title":"Query Latency","type":"graph","targets":[{"expr":"rate(rag_query_duration_seconds_sum[5m])"}]},{"id":2,"title":"Hallucination Rate","type":"stat","targets":[{"expr":"rate(rag_hallucinations_total[5m])"}]}]},"overwrite":true}

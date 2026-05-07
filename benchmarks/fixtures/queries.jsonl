@@ -1,0 +1,10 @@
+{"question": "Quali sono le penali previste in caso di inadempimento?", "expected_doc_ids": ["contract_001_nda", "contract_004_appalto"], "expected_keywords": ["penali", "inadempimento", "€50.000", "€500"]}
+{"question": "Qual è il termine di consegna previsto nel contratto di appalto?", "expected_doc_ids": ["contract_002_appalto"], "expected_keywords": ["12 mesi", "consegna", "milestone"]}
+{"question": "Quali garanzie sono offerte sui beni forniti?", "expected_doc_ids": ["contract_003_fornitura"], "expected_keywords": ["garanzia", "36 mesi", "sostituzione", "48h"]}
+{"question": "Qual è la durata dell'accordo di non divulgazione?", "expected_doc_ids": ["contract_001_nda"], "expected_keywords": ["5 anni", "durata", "riservatezza"]}
+{"question": "Quali sono i termini di pagamento previsti?", "expected_doc_ids": ["contract_002_appalto", "contract_003_fornitura"], "expected_keywords": ["pagamento", "milestone", "60 giorni", "€250.000"]}
+{"question": "Qual è il foro competente indicato?", "expected_doc_ids": ["contract_001_nda"], "expected_keywords": ["Milano", "foro competente"]}
+{"question": "Che tipo di servizi IT sono oggetto del contratto?", "expected_doc_ids": ["contract_002_appalto"], "expected_keywords": ["piattaforma web", "enterprise", "sviluppo"]}
+{"question": "Quante workstation sono previste nella fornitura?", "expected_doc_ids": ["contract_003_fornitura"], "expected_keywords": ["50 workstation", "HP EliteDesk", "monitor 27"]}
+{"question": "Quali sono gli obblighi del Ricevente nell'NDA?", "expected_doc_ids": ["contract_001_nda"], "expected_keywords": ["obblighi", "riservatezza", "ricevente"]}
+{"question": "Cosa succede in caso di ritardo nella consegna?", "expected_doc_ids": ["contract_002_appalto", "contract_003_fornitura"], "expected_keywords": ["ritardo", "penali", "€500/giorno", "15 giorni"]}

@@ -13,7 +13,7 @@ async fn test_ollama_connectivity() {
     let ollama_url = std::env::var("OLLAMA_URL")
         .unwrap_or_else(|_| "http://localhost:11434".to_string());
 
-    let provider = OllamaProvider::new(ollama_url, 8);
+    let provider = OllamaProvider::new(ollama_url, 8, "nomic-embed-text".to_string());
 
     // Test 1: Check availability
     let available = provider.is_available().await;
@@ -76,7 +76,7 @@ async fn test_ollama_embeddings() {
     let ollama_url = std::env::var("OLLAMA_URL")
         .unwrap_or_else(|_| "http://localhost:11434".to_string());
 
-    let provider = OllamaProvider::new(ollama_url, 8);
+    let provider = OllamaProvider::new(ollama_url, 8, "nomic-embed-text".to_string());
 
     let texts = vec![
         "Contratto di fornitura servizi".to_string(),
