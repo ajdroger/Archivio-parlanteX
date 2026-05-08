@@ -10,7 +10,9 @@ services:
   # PHP Gateway — API Gateway & Auth (Slim 4)
   # ==========================================================================
   php-gateway:
-    image: php:8.2-apache
+    build:
+      context: ./php-gateway
+      dockerfile: Dockerfile
     container_name: archivio-php-gateway
     ports:
       - "9080:80"

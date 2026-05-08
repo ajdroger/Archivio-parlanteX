@@ -35,6 +35,9 @@ pub struct Config {
     /// MySQL database name
     pub mysql_db: String,
 
+    /// Redis URL for caching
+    pub redis_url: String,
+
     /// Internal auth token for PHP → Rust communication
     pub rust_engine_internal_token: String,
 
@@ -123,6 +126,9 @@ impl Config {
                 env::var("MYSQL_HOST").unwrap_or_else(|_| "mysql".to_string()),
                 env::var("MYSQL_DB").unwrap_or_else(|_| "archivio_parlante_x".to_string())
             ),
+
+            redis_url: env::var("REDIS_URL")
+                .unwrap_or_else(|_| "redis://redis:6379".to_string()),
 
             rust_engine_internal_token: {
                 let token = env::var("RUST_ENGINE_INTERNAL_TOKEN").unwrap_or_default();

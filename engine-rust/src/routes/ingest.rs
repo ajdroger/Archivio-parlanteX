@@ -17,6 +17,7 @@ pub struct AppState {
     pub config: Arc<crate::config::Config>,
     pub llm_registry: Arc<crate::providers::registry::LlmRegistry>,
     pub python_worker: Arc<crate::clients::python_worker::PythonWorkerClient>,
+    pub db_pool: sqlx::MySqlPool,
 }
 
 /// Ingest document into knowledge base

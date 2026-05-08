@@ -71,6 +71,12 @@ lazy_static = "1.4"
 utoipa = { version = "5", features = ["axum_extras", "chrono"] }
 utoipa-swagger-ui = { version = "8", features = ["axum"] }
 
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio", "mysql", "chrono"] }
+
+# Cache (Redis for permission caching)
+redis = { version = "0.26", features = ["tokio-comp", "connection-manager"] }
+
 [profile.release]
 opt-level = 2
 lto = false

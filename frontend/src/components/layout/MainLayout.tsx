@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useAppStore } from '../../store/appStore';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import {
   MessageSquare,
   FileText,
@@ -31,12 +32,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
       {/* Sidebar */}
       <aside className="w-64 bg-dark-100 border-r border-dark-50 flex flex-col">
         {/* Logo */}
-        <div className="p-4 border-b border-dark-50">
+        <div className="p-4 border-b border-dark-50 space-y-3">
           <h1 className="text-xl font-bold text-primary">
             🏛️ Archivio Parlante
           </h1>
+
+          {/* Workspace Switcher */}
+          <WorkspaceSwitcher />
+
           {currentKb && (
-            <p className="text-xs text-gray-400 mt-1 truncate">
+            <p className="text-xs text-gray-400 truncate">
               KB: {currentKb.name}
             </p>
           )}

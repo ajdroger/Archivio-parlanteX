@@ -1,7 +1,19 @@
 import { create } from 'zustand';
 import type { KnowledgeBase, Document, ComparisonResult, LLMProvider } from '../types';
 
+interface Workspace {
+  id: string;
+  name: string;
+  user_role: 'admin' | 'member' | 'viewer';
+  member_count: number;
+  kb_count: number;
+}
+
 interface AppState {
+  // Workspace state (Fase 6.3)
+  currentWorkspace: Workspace | null;
+  setCurrentWorkspace: (workspace: Workspace | null) => void;
+
   // Knowledge Base state
   currentKb: KnowledgeBase | null;
   knowledgeBases: KnowledgeBase[];
@@ -39,6 +51,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set) => ({
   // Initial state
+  currentWorkspace: null,
   currentKb: null,
   knowledgeBases: [],
   documents: [],
@@ -54,6 +67,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedModel: null,
 
   // Actions
+  setCurrentWorkspace: (workspace) => set({ currentWorkspace: workspace }),
   setCurrentKb: (kb) => set({ currentKb: kb }),
   setKnowledgeBases: (kbs) => set({ knowledgeBases: kbs }),
   setDocuments: (docs) => set({ documents: docs }),

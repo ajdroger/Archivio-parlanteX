@@ -33,6 +33,7 @@ use clients::python_worker::PythonWorkerClient;
 use config::Config;
 use providers::registry::LlmRegistry;
 use routes::ingest::AppState;
+use sqlx::mysql::MySqlPoolOptions;
 
 #[tokio::main]
 async fn main() {
@@ -84,12 +85,40 @@ async fn run() -> anyhow::Result<()> {
     // Initialize Python worker client
     let python_worker = PythonWorkerClient::new(config.python_worker_url.clone());
 
+    // Initialize MySQL connection pool
+    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        format!(
+            "mysql://{}:{}@{}/{}",
+            std::env::var("MYSQL_USER").unwrap_or_else(|_| "root".to_string()),
+            std::env::var("MYSQL_PASSWORD").unwrap_or_else(|_| "devpass123".to_string()),
+            std::env::var("MYSQL_HOST").unwrap_or_else(|_| "mysql".to_string()),
+            std::env::var("MYSQL_DB").unwrap_or_else(|_| "archivio_parlante_x".to_string())
+        )
+    });
+
+    let db_pool = MySqlPoolOptions::new()
+        .max_connections(20)
+        .acquire_timeout(std::time::Duration::from_secs(10))
+        .connect(&database_url)
+        .await
+        .context("Failed to connect to MySQL database")?;
+
+    tracing::info!("MySQL connection pool initialized with max {} connections", 20);
+
     // Build application state
+    let config_arc = Arc::new(config.clone());
     let state = AppState {
-        config: Arc::new(config.clone()),
+        config: config_arc.clone(),
         llm_registry: Arc::new(llm_registry),
         python_worker: Arc::new(python_worker),
+        db_pool: db_pool.clone(),
     };
+
+    // Initialize KB access control middleware
+    let kb_access_middleware = Arc::new(middleware::kb_access_control::KbAccessMiddleware::new(
+        config_arc.clone(),
+        db_pool.clone(),
+    ));
 
     // Build API documentation
     let openapi_spec = routes::docs::get_openapi_spec();
@@ -102,7 +131,7 @@ async fn run() -> anyhow::Result<()> {
             "/compare_contracts",
             post(routes::compare::handle_compare_contracts),
         )
-        // KB management endpoints
+        // KB management endpoints (protected by workspace permissions)
         .route("/kb/:kb_id/documents", get(routes::kb::list_documents))
         .route(
             "/kb/:kb_id/documents/:doc_id",
@@ -111,7 +140,9 @@ async fn run() -> anyhow::Result<()> {
         .route("/kb/:kb_id/graph", get(routes::kb::get_graph))
         .route("/kb/:kb_id/stats", get(routes::kb::get_stats))
         .route("/admin/reindex/:kb_id", post(routes::kb::reindex_kb))
-        // Apply auth middleware only to protected routes
+        // Apply middleware layers (inner layers run first)
+        // Fase 6.3: KB access control middleware (permission checks with Redis cache)
+        .layer(axum_middleware::from_fn_with_state(kb_access_middleware.clone(), middleware::kb_access_control::kb_access_middleware))
         .layer(axum_middleware::from_fn(middleware::rate_limit::rate_limit_middleware))
         .layer(axum_middleware::from_fn(middleware::internal_auth::internal_auth_middleware));
 

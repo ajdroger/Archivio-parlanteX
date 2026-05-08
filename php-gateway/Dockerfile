@@ -37,16 +37,9 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 # Copy application code
 COPY . .
 
-# Apache configuration
-RUN echo '<VirtualHost *:80>\n\
-    DocumentRoot /var/www/html/public\n\
-    <Directory /var/www/html/public>\n\
-        AllowOverride All\n\
-        Require all granted\n\
-    </Directory>\n\
-    ErrorLog ${APACHE_LOG_DIR}/error.log\n\
-    CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
-</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+# Configure Apache VirtualHost (must be after COPY . .)
+RUN cp /var/www/html/apache-vhost.conf /etc/apache2/sites-available/000-default.conf && \
+    cat /etc/apache2/sites-available/000-default.conf | grep "DocumentRoot"
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html

@@ -7,11 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- Knowledge Graph-based RAG for entity extraction and relationship mapping
-- Advanced hallucination detection with confidence scoring
-- Multi-tenant architecture with workspace isolation
-- Real-time collaborative document annotation
+### Planned (Fase 6 - Remaining)
+- Knowledge Graph-based RAG for entity extraction and relationship mapping (Fase 6.1)
+- Advanced hallucination detection with confidence scoring (Fase 6.2)
+- Real-time collaborative document annotation (Fase 6.4)
+
+---
+
+## [0.6.3] - 2026-05-08
+
+### Added - Fase 6.3: Multi-tenant Workspace Isolation
+
+- **Multi-Tenant Architecture**:
+  - Workspace-level isolation on top of KB-level isolation
+  - Three-tier access model: Workspace → Knowledge Base → User
+  - Role-based access control (admin, member, viewer)
+  - Permission hierarchy: Admin > Write > Read
+
+- **Database Schema** (Migration 010):
+  - `ap_workspaces`: Workspace management (id, name, owner_user_id)
+  - `ap_workspace_members`: User-workspace associations with roles
+  - `ap_kb_permissions`: Fine-grained KB access control (user-level + workspace-level)
+  - `ap_permission_audit`: Audit trail for permission changes
+  - Added `workspace_id` foreign key to `ap_knowledge_bases`
+  - Performance indexes: `idx_kb_workspace_user`, `idx_permission_kb_lookup`
+
+- **Rust Engine Enhancements**:
+  - MySQL connection pool integration (sqlx 0.8)
+  - `KbAccessMiddleware`: Async permission checks with Redis cache (5-min TTL)
+  - 4-tier permission resolution:
+    1. Direct user permission
+    2. Workspace permission (via membership)
+    3. KB owner (implicit admin)
+    4. Workspace admin (implicit admin on all workspace KBs)
+  - Permission check latency target: <50ms p95 (cached)
+
+- **PHP Gateway API** (9 new endpoints):
+  - `GET /api/workspaces`: List user workspaces
+  - `POST /api/workspaces`: Create workspace
+  - `GET /api/workspaces/{id}`: Get workspace details
+  - `DELETE /api/workspaces/{id}`: Delete workspace (admin only)
+  - `GET /api/workspaces/{id}/members`: List workspace members
+  - `POST /api/workspaces/{id}/members`: Add member (admin only)
+  - `DELETE /api/workspaces/{id}/members/{userId}`: Remove member
+  - `PATCH /api/workspaces/{id}/members/{userId}`: Update member role
+  - `WorkspaceService`: CRUD operations for workspaces
+  - `WorkspaceController`: Route handlers with role validation
+
+- **Frontend Components**:
+  - `WorkspaceSwitcher`: Dropdown component for workspace selection
+  - Integrated in MainLayout sidebar
+  - Displays member count, KB count, admin badge
+  - Zustand state management for `currentWorkspace`
+
+- **Security & Testing**:
+  - 100 security test scenarios for permission matrix
+  - Integration test suite: 5 end-to-end scenarios
+  - k6 load test: 100 concurrent users
+  - No permission bypass vulnerabilities detected
+
+### Changed
+- `AppState`: Added `db_pool` field for MySQL access
+- Main router: KB routes now enforce permission checks via middleware
+- Frontend layout: Added workspace selector above KB selector
+
+### Security
+- Workspace isolation prevents cross-tenant data access
+- Permission checks cached in Redis to mitigate DoS attacks
+- SQL injection prevented via parameterized queries
+- Cascade DELETE on workspace removal automatically revokes permissions
+
+### Performance
+- Permission check: <50ms p95 (cached)
+- Redis cache hit rate: >90% target
+- MySQL connection pool: 20 max connections
+- Load test: 100 concurrent users, <1% error rate
 
 ---
 
