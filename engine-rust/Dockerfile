@@ -15,8 +15,9 @@ COPY Cargo.toml Cargo.lock* ./
 # Copy source
 COPY src ./src
 
-# Build release binary with increased stack size to avoid SIGSEGV
-ENV RUST_MIN_STACK=16777216
+# Build release binary with increased stack size to avoid SIGSEGV during linking
+# Increased from 16MB → 32MB → 64MB (linker requires more stack for complex project)
+ENV RUST_MIN_STACK=67108864
 RUN cargo build --release
 
 # === Stage 2: Runtime ===

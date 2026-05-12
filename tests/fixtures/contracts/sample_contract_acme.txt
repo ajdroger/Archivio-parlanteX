@@ -1,0 +1,73 @@
+# CONTRATTO DI FORNITURA
+
+**Data**: 15 gennaio 2024
+**Parti contraenti**:
+- **Fornitore**: Acme Corporation S.p.A., con sede in Milano, Via Roma 123
+- **Cliente**: Beta Solutions S.r.l., con sede in Roma, Piazza del Popolo 45
+
+## Articolo 1 - Oggetto del Contratto
+
+Acme Corporation S.p.A. si impegna a fornire a Beta Solutions S.r.l. i seguenti servizi software:
+- Piattaforma di gestione documentale "DocuFlow Pro"
+- Assistenza tecnica H24 per 12 mesi
+- Formazione del personale (2 sessioni da 4 ore)
+
+## Articolo 2 - Corrispettivo
+
+Il corrispettivo totale per i servizi è pari a **€50,000** (cinquantamila/00 euro), così suddiviso:
+- Licenza software: €35,000
+- Assistenza tecnica: €10,000
+- Formazione: €5,000
+
+Il pagamento avverrà in 3 rate:
+- 30% alla firma (€15,000)
+- 40% a 30 giorni dall'installazione (€20,000)
+- 30% a 90 giorni dall'installazione (€15,000)
+
+## Articolo 3 - Termini di Consegna
+
+Acme Corporation si impegna a completare l'installazione del software entro **60 giorni** dalla firma del contratto. In caso di ritardo superiore a 15 giorni, Beta Solutions potrà richiedere una riduzione del 5% del corrispettivo per ogni settimana di ritardo.
+
+## Articolo 4 - Garanzie
+
+Il Fornitore garantisce che il software:
+- Sarà privo di difetti per 24 mesi dalla data di installazione
+- Supporterà tutti i browser moderni (Chrome, Firefox, Safari, Edge)
+- Rispetterà le normative GDPR vigenti
+
+## Articolo 5 - Clausola Penale per Inadempimento
+
+In caso di inadempimento grave da parte di Acme Corporation (mancata consegna, software non funzionante, violazione GDPR), Beta Solutions avrà diritto a:
+
+**5.1** Richiedere la risoluzione immediata del contratto senza preavviso
+
+**5.2** Ottenere il pagamento di una penale pari a **€10,000** (diecimila/00 euro) come risarcimento forfettario dei danni subiti, fatto salvo il diritto al maggior danno
+
+**5.3** Trattenere eventuali rate già versate fino a concorrenza del danno effettivo
+
+La penale di cui al punto 5.2 sarà dovuta automaticamente, senza necessità di messa in mora, in caso di:
+- Mancata consegna entro 90 giorni dalla firma
+- Presenza di bug critici che impediscano l'utilizzo del software per più di 48 ore consecutive
+- Violazione delle norme GDPR che comporti sanzioni per il Cliente
+
+## Articolo 6 - Riservatezza
+
+Le Parti si impegnano a mantenere riservate tutte le informazioni tecniche e commerciali scambiate durante l'esecuzione del contratto. L'obbligo di riservatezza permane per 5 anni dalla cessazione del contratto.
+
+## Articolo 7 - Risoluzione delle Controversie
+
+Eventuali controversie derivanti dal presente contratto saranno risolte mediante arbitrato presso la Camera Arbitrale di Milano, con applicazione del diritto italiano. Le Parti rinunciano espressamente alla competenza dell'autorità giudiziaria ordinaria.
+
+## Articolo 8 - Legge Applicabile e Foro Competente
+
+Il presente contratto è regolato dalla legge italiana. Per ogni controversia non soggetta ad arbitrato, sarà competente il Foro di Milano.
+
+## Firme
+
+**Per Acme Corporation S.p.A.**
+Mario Rossi, Amministratore Delegato
+Data: 15 gennaio 2024
+
+**Per Beta Solutions S.r.l.**
+Laura Bianchi, Legale Rappresentante
+Data: 15 gennaio 2024

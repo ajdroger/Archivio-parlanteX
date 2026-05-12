@@ -11,8 +11,9 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import traceback
 
-from app.routers import contextualize, extract_kg, parse, rerank
+from app.routers import contextualize, extract_kg, parse, rerank, verify_hallucination
 from app.config import settings
 
 # Configure structured logging
@@ -20,7 +21,7 @@ structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
-        structlog.processors.JSONRenderer(),
+        structlog.dev.ConsoleRenderer(),
     ]
 )
 
@@ -40,6 +41,14 @@ async def lifespan(app: FastAPI):
         logger.info("✅ BGE reranker initialized")
     except Exception as e:
         logger.warning("reranker_init_skipped", error=str(e))
+
+    # Initialize hallucination detector (Fase 6.2)
+    try:
+        from app.services.hallucination_detector import HallucinationDetector
+        detector = HallucinationDetector()
+        logger.info("✅ Hallucination detector ready")
+    except Exception as e:
+        logger.warning("hallucination_detector_init_skipped", error=str(e))
 
     # TODO Fase 2.3+: Initialize spaCy NER, contextual retrieval, etc.
     yield
@@ -68,18 +77,27 @@ app.include_router(parse.router)
 app.include_router(rerank.router)
 app.include_router(contextualize.router)
 app.include_router(extract_kg.router)
+app.include_router(verify_hallucination.router)
 
 
 # Exception handlers
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle validation errors"""
-    logger.warning("validation_error", errors=exc.errors(), body=exc.body)
+    # Safely convert errors to string to avoid JSON serialization issues with embedded exception objects
+    safe_errors = []
+    for error in exc.errors():
+        safe_error = dict(error)
+        if "ctx" in safe_error and "error" in safe_error["ctx"]:
+            safe_error["ctx"] = {k: str(v) if k == "error" else v for k, v in safe_error["ctx"].items()}
+        safe_errors.append(safe_error)
+        
+    logger.warning("validation_error", errors=safe_errors, body=exc.body)
     return JSONResponse(
         status_code=400,
         content={
             "error": "Validation error",
-            "detail": exc.errors(),
+            "detail": safe_errors,
         },
     )
 
@@ -87,12 +105,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Handle all other exceptions"""
+    traceback.print_exc()
     logger.error("unhandled_exception", error=str(exc), path=request.url.path)
     return JSONResponse(
         status_code=500,
         content={
             "error": "Internal server error",
-            "detail": str(exc),
+            "detail": repr(exc),
         },
     )
 
@@ -123,6 +142,7 @@ async def root():
             "POST /rerank",
             "POST /contextualize",
             "POST /extract_kg",
+            "POST /verify_hallucination",
         ],
     }
 

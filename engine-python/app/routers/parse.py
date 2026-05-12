@@ -101,6 +101,28 @@ async def parse_document(request: ParseRequest) -> ParseResponse:
             logger.error("ocr_failed", error=str(e), doc_id=request.doc_id)
             raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
 
+    elif request.mime_type == "text/plain":
+        # Text file parsing
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                text = f.read()
+
+            from app.schemas import ParsedChunk
+
+            chunks = [
+                ParsedChunk(
+                    text=text,
+                    page_number=1,
+                    metadata={"method": "text_read"},
+                )
+            ]
+            parsing_method = "text_read"
+            total_pages = 1
+
+        except Exception as e:
+            logger.error("text_read_failed", error=str(e), doc_id=request.doc_id)
+            raise HTTPException(status_code=500, detail=f"Text read failed: {str(e)}")
+
     else:
         raise HTTPException(
             status_code=400,

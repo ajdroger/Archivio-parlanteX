@@ -85,7 +85,7 @@ impl ContextualRetrievalEnricher {
         // Enrich chunks in parallel
         let mut tasks = Vec::new();
 
-        for chunk in chunks.iter_mut() {
+        for (i, chunk) in chunks.iter().enumerate() {
             let chunk_text = chunk.text.clone();
             let summary_clone = summary.clone();
             let enricher = self.clone_for_task();
@@ -94,21 +94,18 @@ impl ContextualRetrievalEnricher {
                 enricher.enrich_single(&summary_clone, &chunk_text).await
             });
 
-            tasks.push((chunk as *mut Chunk, task));
+            tasks.push((i, task));
         }
 
         // Collect results
         let mut success_count = 0;
         let mut failure_count = 0;
 
-        for (chunk_ptr, task) in tasks {
+        for (i, task) in tasks {
             match task.await {
                 Ok(Ok(context)) => {
-                    // Safety: we know the pointer is valid and no other task is accessing it
-                    unsafe {
-                        let chunk = &mut *chunk_ptr;
-                        chunk.contextual_text = Some(format!("{}\n\n{}", context, chunk.text));
-                    }
+                    let chunk = &mut chunks[i];
+                    chunk.contextual_text = Some(format!("{}\n\n{}", context, chunk.text));
                     success_count += 1;
                 }
                 Ok(Err(e)) => {

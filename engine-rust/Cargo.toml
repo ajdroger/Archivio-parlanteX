@@ -14,7 +14,7 @@ path = "src/lib.rs"
 
 [dependencies]
 # Web framework
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }  # ws for WebSocket support
 tower = "0.5"
 tower-http = { version = "0.6", features = ["trace", "cors", "compression-gzip"] }
 
@@ -76,6 +76,9 @@ sqlx = { version = "0.8", features = ["runtime-tokio", "mysql", "chrono"] }
 
 # Cache (Redis for permission caching)
 redis = { version = "0.26", features = ["tokio-comp", "connection-manager"] }
+
+# Cryptography (SHA-256 for cache keys)
+sha2 = "0.10"
 
 [profile.release]
 opt-level = 2

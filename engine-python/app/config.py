@@ -6,6 +6,7 @@ Uses pydantic-settings for environment variable parsing.
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
+from typing import List
 
 
 class Settings(BaseSettings):
@@ -16,7 +17,7 @@ class Settings(BaseSettings):
     app_debug: bool = True
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:5173"]
 
     @field_validator("cors_origins", mode="before")
     @classmethod

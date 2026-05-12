@@ -1,6 +1,6 @@
 /// Document ingestion route handler
 
-use axum::{extract::State, Json};
+use axum::{extract::State, response::IntoResponse, Json};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -52,7 +52,12 @@ pub async fn handle_ingest(
     tracing::debug!("Calling Python worker to parse document");
     let parsed = state
         .python_worker
-        .parse_document(req.file_path.clone(), req.doc_id.clone())
+        .parse_document(
+            req.file_path.clone(),
+            req.doc_id.clone(),
+            req.kb_id.clone(),
+            req.mime_type.clone(),
+        )
         .await?;
 
     let full_text = parsed

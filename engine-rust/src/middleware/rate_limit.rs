@@ -86,7 +86,7 @@ pub async fn rate_limit_middleware(
         );
 
         // Add Retry-After header
-        let retry_after = config.window_duration
+        let _retry_after = config.window_duration
             .saturating_sub(now.duration_since(entry.window_start))
             .as_secs();
 

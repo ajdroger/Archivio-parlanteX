@@ -1,8 +1,8 @@
 # Archivio Parlante — System Architecture
 
-**Version**: 1.0  
-**Last Updated**: 2026-05-06  
-**Status**: Production-Ready (6/7 services, Python worker requires native startup)
+**Version**: 1.1  
+**Last Updated**: 2026-05-08  
+**Status**: Production-Ready (Fase 6 Complete - Advanced Features Implemented)
 
 ---
 
@@ -11,10 +11,15 @@
 1. [High-Level Overview](#high-level-overview)
 2. [Service Architecture](#service-architecture)
 3. [Data Flow](#data-flow)
-4. [LLM Provider Registry](#llm-provider-registry)
-5. [Storage Architecture](#storage-architecture)
-6. [Security Architecture](#security-architecture)
-7. [Deployment Architecture](#deployment-architecture)
+4. [Advanced Features (Fase 6)](#advanced-features-fase-6)
+   - [Knowledge Graph RAG](#4-knowledge-graph-rag-fase-61)
+   - [Hallucination Detection](#5-hallucination-detection-fase-62)
+   - [Multi-tenant Workspaces](#6-multi-tenant-workspaces-fase-63)
+   - [Collaborative Annotation](#7-collaborative-annotation-fase-64)
+5. [LLM Provider Registry](#llm-provider-registry)
+6. [Storage Architecture](#storage-architecture)
+7. [Security Architecture](#security-architecture)
+8. [Deployment Architecture](#deployment-architecture)
 
 ---
 
@@ -204,6 +209,359 @@ User selects contracts [A, B, C] + aspects ["penalties", "termination"]
                                 ↓
                      Return structured comparison (Markdown table)
 ```
+
+---
+
+## Advanced Features (Fase 6)
+
+### 4. Knowledge Graph RAG (Fase 6.1)
+
+**Purpose**: Enhance retrieval with graph-guided entity expansion for multi-hop reasoning.
+
+**Architecture**:
+```
+User query → Extract entities (spaCy NER)
+                     ↓
+            Lookup entities in graph (MySQL ap_graph_nodes)
+                     ↓
+            N-hop traversal (default 2 hops) via ap_graph_edges
+                     ↓
+            Expand entity set: [original entities + related entities]
+                     ↓
+            Retrieve chunks associated with expanded entities
+                     ↓
+            Merge with hybrid search results (RRF)
+                     ↓
+            Return enriched context to LLM
+```
+
+**Components**:
+- **LLM Relation Extractor** (Python): Ollama qwen2.5:3b extracts typed relations from text
+  - Relation types: `SIGNS`, `OBLIGATED_TO`, `PAYS`, `RECEIVES`, `GOVERNED_BY`, `EXPIRES_ON`, `REFERS_TO`, `AMENDS`, `TERMINATES`, `CONTAINS_CLAUSE`
+  - Retry logic: 3 attempts, exponential backoff, 30s timeout
+  - Output: JSON array of `{source, relation, target}` triples
+
+- **Graph Retriever** (Rust): MySQL-based graph traversal
+  - Fuzzy entity matching: SQL `LIKE` with normalized labels
+  - BFS traversal with configurable depth (1-3 hops)
+  - Chunk retrieval by entity association
+
+**API**:
+```json
+POST /query
+{
+  "kb_id": "contracts_2024",
+  "query": "Quali sono le penali di Acme Corp?",
+  "retrieval_mode": "hybrid+graph",  // "hybrid" | "graph" | "hybrid+graph"
+  "graph_expand_depth": 2             // Default: 2 hops
+}
+```
+
+**Performance Targets**:
+- Recall@10 improvement: ≥5% vs pure hybrid
+- Latency overhead: <200ms (p95)
+- Graceful fallback if graph empty
+
+**Files**:
+- `engine-python/app/services/llm_relation_extractor.py`
+- `engine-rust/src/rag/graph_retrieval.rs`
+- `engine-python/app/services/knowledge_graph.py` (integrated LLM relations)
+
+---
+
+### 5. Hallucination Detection (Fase 6.2)
+
+**Purpose**: Post-generation verification of LLM answers against retrieved sources.
+
+**Architecture**:
+```
+LLM generates answer
+         ↓
+Extract atomic claims (Python) → Ollama splits answer into claims
+         ↓
+For each claim:
+    Verify citation (Python) → String matching + token overlap (70% threshold)
+         ↓
+    Supported? → citation found in sources
+    Unsupported? → flagged as hallucination
+         ↓
+Calculate hallucination score: unsupported_claims / total_claims
+         ↓
+Cache result in Redis (SHA-256 key, 1h TTL)
+         ↓
+Store in database: ap_chat_messages.hallucination_score
+         ↓
+Return to user with flagged claims
+```
+
+**Components**:
+- **Hallucination Detector** (Python): 
+  - Claim extraction: Ollama with zero-shot prompt
+  - Citation verification: String matching + token overlap
+  - Limits: 20 claims per answer for performance
+  - Score: 0.0 (no hallucinations) to 1.0 (all hallucinated)
+
+- **Citation Validator** (Rust):
+  - Calls Python worker `/verify_hallucination` endpoint
+  - Redis caching with SHA-256 hash keys (answer + sources)
+  - 60s timeout for validation requests
+  - Integrated in `/chat` endpoint
+
+**API**:
+```json
+POST /chat
+{
+  "kb_id": "contracts_2024",
+  "messages": [{"role": "user", "content": "Quali penali?"}],
+  "verify_hallucinations": true  // Enable detection
+}
+
+Response:
+{
+  "answer": "Acme Corp deve pagare €10,000 per inadempimento.",
+  "sources": [...],
+  "hallucination_score": 0.05,  // 0.00-1.00
+  "flagged_claims": []           // Empty = all claims supported
+}
+```
+
+**Database Schema** (Migration 009):
+```sql
+ALTER TABLE ap_chat_messages 
+  ADD COLUMN hallucination_score DECIMAL(3,2) DEFAULT NULL,
+  ADD COLUMN flagged_claims_count INT DEFAULT 0,
+  ADD COLUMN verified_at DATETIME DEFAULT NULL;
+
+CREATE INDEX idx_messages_hallucination ON ap_chat_messages(hallucination_score);
+```
+
+**Performance Targets**:
+- Hallucination rate on trick questions: ≤1%
+- Precision on flagging: ≥85%
+- Latency overhead: <300ms (p95)
+- False positive rate: <5%
+
+**Files**:
+- `engine-python/app/services/hallucination_detector.py`
+- `engine-rust/src/rag/citation_validator.rs`
+- `engine-rust/src/routes/chat.rs` (integrated validation)
+
+---
+
+### 6. Multi-tenant Workspaces (Fase 6.3)
+
+**Purpose**: Enterprise workspace isolation with role-based access control.
+
+**Architecture**:
+```
+User → belongs to → Workspace(s) → contains → Knowledge Base(s) → contains → Documents
+                         ↓
+                   Member role: admin | member | viewer
+                         ↓
+            Permission hierarchy: Admin > Write > Read
+                         ↓
+         4-tier permission resolution:
+         1. Direct user permission (ap_kb_permissions.user_id)
+         2. Workspace permission (ap_kb_permissions.workspace_id + membership)
+         3. KB owner (implicit admin)
+         4. Workspace admin (implicit admin on all workspace KBs)
+```
+
+**Database Schema** (Migration 010):
+```sql
+ap_workspaces
+  - id (CHAR(36), PK)
+  - name (VARCHAR(255))
+  - owner_user_id (BIGINT, FK → ap_users)
+  - created_at, updated_at, deleted_at
+
+ap_workspace_members
+  - workspace_id (CHAR(36), FK → ap_workspaces)
+  - user_id (BIGINT, FK → ap_users)
+  - role (ENUM: 'admin', 'member', 'viewer')
+  - PK: (workspace_id, user_id)
+
+ap_kb_permissions
+  - kb_id (CHAR(36), FK → ap_knowledge_bases)
+  - workspace_id (CHAR(36), FK → ap_workspaces, nullable)
+  - user_id (BIGINT, FK → ap_users, nullable)
+  - permission (ENUM: 'read', 'write', 'admin')
+  - granted_by (BIGINT, FK → ap_users)
+
+ap_permission_audit
+  - id (BIGINT, PK)
+  - workspace_id, user_id, kb_id, action, granted_by
+  - timestamp
+```
+
+**Components**:
+- **KbAccessMiddleware** (Rust):
+  - Async permission checks with MySQL queries
+  - Redis cache: 5-min TTL, SHA-256 key `perm:{user_id}:{kb_id}`
+  - Applied to all KB routes (`/query`, `/chat`, `/ws/collaborate`, etc.)
+  - Returns `403 Forbidden` on permission denial
+
+- **WorkspaceService** (PHP):
+  - CRUD operations for workspaces
+  - Member management: add/remove/update role
+  - KB permission assignment
+
+- **WorkspaceController** (PHP):
+  - 9 REST endpoints (GET/POST/DELETE/PATCH)
+  - Role validation: only admins can delete workspace or modify members
+
+**API Examples**:
+```bash
+# List user workspaces
+GET /api/workspaces
+
+# Create workspace
+POST /api/workspaces
+{"name": "Legal Team"}
+
+# Add member
+POST /api/workspaces/{id}/members
+{"user_id": 2, "role": "member"}
+
+# Query with permission check (automatic)
+POST /query
+{"kb_id": "contracts_2024", "query": "..."}
+# → Middleware checks user permission on kb_id
+```
+
+**Frontend**:
+- `WorkspaceSwitcher` component in MainLayout sidebar
+- Displays member count, KB count, admin badge
+- Zustand state: `currentWorkspace`
+
+**Performance Targets**:
+- Permission check latency: <50ms (p95, cached)
+- Redis cache hit rate: >90%
+- Load test: 100 concurrent users, <1% error rate
+
+**Security**:
+- SQL injection prevented via parameterized queries
+- Cascade DELETE on workspace removal revokes all permissions
+- Permission cache invalidation on role changes
+
+**Files**:
+- `engine-rust/src/middleware/kb_access_control.rs`
+- `php-gateway/src/Service/WorkspaceService.php`
+- `php-gateway/src/Controller/WorkspaceController.php`
+- `frontend/src/components/layout/WorkspaceSwitcher.tsx`
+
+---
+
+### 7. Collaborative Annotation (Fase 6.4)
+
+**Purpose**: Real-time collaborative document annotation with WebSocket synchronization.
+
+**Architecture**:
+```
+Client A (Browser)               Redis Pub/Sub               Client B (Browser)
+       ↓                               ↑                            ↑
+WebSocket connect → Rust Engine → Subscribe to channel    ← WebSocket connect
+       ↓                               ↓                            ↓
+Create annotation → Broadcast → ws:collab:{kb_id}:{doc_id} → Receive annotation
+       ↓                               ↓                            ↓
+MySQL (persist) ← ap_annotations     Push to all clients  → Update UI (live)
+       ↓
+Heartbeat (30s) → PresenceTracker (Redis sorted set) → Active users list
+```
+
+**Components**:
+- **WebSocket Handler** (Rust):
+  - Bidirectional client-server communication
+  - Authentication via JWT in query params
+  - Auto-reconnect with exponential backoff (max 5 retries, 16s delay)
+  - Heartbeat keep-alive: 30s interval
+
+- **AnnotationBroadcaster** (Rust):
+  - Redis pub/sub for message broadcasting
+  - Channel naming: `ws:collab:{kb_id}:{doc_id}`
+  - Message types: `annotation.create`, `annotation.update`, `annotation.delete`
+
+- **PresenceTracker** (Rust):
+  - Redis sorted set: `presence:{kb_id}:{doc_id}`
+  - Score = timestamp (UNIX epoch)
+  - Cleanup: Remove entries older than 60s
+  - Sends `presence.update` on join/leave
+
+**Database Schema** (Migration 011):
+```sql
+ap_annotations
+  - id (CHAR(36), PK)
+  - kb_id (CHAR(36), FK → ap_knowledge_bases)
+  - doc_id (CHAR(36))
+  - chunk_id (VARCHAR(255))
+  - user_id (BIGINT, FK → ap_users)
+  - text (TEXT)
+  - position_start, position_end (INT)
+  - created_at, updated_at, deleted_at
+
+ap_annotation_threads
+  - id (CHAR(36), PK)
+  - annotation_id (CHAR(36), FK → ap_annotations)
+  - user_id (BIGINT, FK → ap_users)
+  - text (TEXT)
+  - created_at
+```
+
+**WebSocket Protocol**:
+```javascript
+// Client → Server
+{
+  "type": "annotation.create",
+  "chunk_id": "abc123",
+  "text": "This clause needs legal review",
+  "position": {"start": 42, "end": 100}
+}
+
+{
+  "type": "heartbeat",
+  "timestamp": 1683000030000
+}
+
+// Server → Client
+{
+  "type": "annotation.created",
+  "annotation": {
+    "id": "xyz789",
+    "user": {"id": 1, "name": "Alice", "avatar_url": "..."},
+    "chunk_id": "abc123",
+    "text": "This clause needs legal review",
+    "position": {"start": 42, "end": 100},
+    "created_at": "2026-05-08T10:30:00Z"
+  }
+}
+
+{
+  "type": "presence.update",
+  "users": [
+    {"id": 1, "name": "Alice", "last_seen": "2026-05-08T10:30:00Z"},
+    {"id": 2, "name": "Bob", "last_seen": "2026-05-08T10:30:05Z"}
+  ]
+}
+```
+
+**Frontend**:
+- `CollaborationClient` (TypeScript): WebSocket client with auto-reconnect
+- `useCollaboration()` React hook for easy integration
+- `AnnotationLayer` component: highlights, popovers, modal, presence indicators
+- Presence indicators in document header (avatars of active users)
+
+**Performance Targets**:
+- Message delivery latency: <500ms (p95)
+- 100 concurrent WebSocket connections stable
+- Zero message loss
+- Auto-reconnect within 5s after network interruption
+
+**Files**:
+- `engine-rust/src/websocket/handler.rs`
+- `engine-rust/src/websocket/broadcaster.rs`
+- `engine-rust/src/websocket/presence.rs`
+- `frontend/src/lib/websocket.ts`
+- `frontend/src/components/Annotations/AnnotationLayer.tsx`
 
 ---
 

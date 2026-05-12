@@ -225,16 +225,22 @@ pub async fn kb_access_middleware(
 ) -> Result<Response, AppError> {
     let start = Instant::now();
 
+    // Extract kb_id from path parameters
+    let kb_id_opt = extract_kb_id_from_path(request.uri().path());
+
+    // If no kb_id in path (e.g., /query, /ingest), skip this middleware
+    // and let the handler check permissions (or rely on internal auth)
+    let kb_id = match kb_id_opt {
+        Some(id) => id,
+        None => return Ok(next.run(request).await),
+    };
+
     // Extract user_id from request extensions (set by auth middleware)
     let user_id = request
         .extensions()
         .get::<u64>()
         .copied()
         .ok_or_else(|| AppError::Unauthorized("User ID not found in request".to_string()))?;
-
-    // Extract kb_id from path parameters
-    let kb_id = extract_kb_id_from_path(request.uri().path())
-        .ok_or_else(|| AppError::BadRequest("KB ID not found in request path".to_string()))?;
 
     // Determine required permission based on HTTP method
     let required_permission = match *request.method() {

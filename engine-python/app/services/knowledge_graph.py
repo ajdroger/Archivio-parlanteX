@@ -130,6 +130,115 @@ class KGExtractor:
 
         return nodes, edges
 
+    async def extract_with_llm_relations(
+        self, text: str, doc_id: str, ollama_url: str = "http://localhost:11434"
+    ) -> Tuple[List[Dict], List[Dict]]:
+        """
+        Extract knowledge graph with LLM-enhanced relation extraction.
+
+        Combines spaCy NER for entities with Ollama LLM for typed relations.
+        Relations are merged and deduplicated by hash.
+
+        Args:
+            text: Contract text
+            doc_id: Document ID
+            ollama_url: Ollama API URL
+
+        Returns:
+            (nodes, edges) with enhanced LLM-extracted relations
+        """
+        if not self._initialized:
+            self.initialize()
+
+        logger.info("extracting_kg_with_llm", doc_id=doc_id, text_length=len(text))
+
+        # Process with spaCy for entities
+        doc = self.nlp(text)
+        nodes = self._extract_entities(doc, doc_id)
+
+        # Extract heuristic relations (fast fallback)
+        heuristic_edges = self._extract_relations(doc, nodes, doc_id)
+
+        # Extract LLM relations (slower but more accurate)
+        try:
+            from app.services.llm_relation_extractor import extract_relations_with_llm
+
+            # Convert nodes to entity format for LLM
+            entities = [
+                {
+                    "text": node["name"],
+                    "type": node["entity_type"],
+                    "start": node["properties"]["start_char"],
+                    "end": node["properties"]["end_char"],
+                }
+                for node in nodes
+            ]
+
+            llm_relations = await extract_relations_with_llm(text, entities, ollama_url)
+
+            # Convert LLM relations to edge format
+            llm_edges = []
+            for rel in llm_relations:
+                # Find matching nodes by entity text
+                source_node = next(
+                    (n for n in nodes if n["name"] == rel["source"]), None
+                )
+                target_node = next(
+                    (n for n in nodes if n["name"] == rel["target"]), None
+                )
+
+                if source_node and target_node:
+                    llm_edges.append(
+                        {
+                            "source_id": source_node["id"],
+                            "target_id": target_node["id"],
+                            "relation_type": rel["relation_type"],
+                            "properties": {
+                                "context": rel.get("text_evidence", "")[:200],
+                                "confidence": rel.get("confidence", 0.8),
+                                "extraction_method": "llm",
+                            },
+                        }
+                    )
+
+            logger.info(
+                "llm_relations_extracted",
+                doc_id=doc_id,
+                llm_count=len(llm_edges),
+                heuristic_count=len(heuristic_edges),
+            )
+
+        except Exception as e:
+            logger.warning("llm_relation_extraction_failed", error=str(e))
+            llm_edges = []
+
+        # Merge relations: deduplicate by (source_id, target_id, relation_type)
+        merged_edges = []
+        seen_relations = set()
+
+        # Prefer LLM relations (higher confidence)
+        for edge in llm_edges + heuristic_edges:
+            relation_key = (
+                edge["source_id"],
+                edge["target_id"],
+                edge["relation_type"],
+            )
+
+            if relation_key not in seen_relations:
+                seen_relations.add(relation_key)
+                merged_edges.append(edge)
+
+        logger.info(
+            "kg_extracted_with_llm",
+            doc_id=doc_id,
+            nodes_count=len(nodes),
+            edges_count=len(merged_edges),
+            llm_edges=len(llm_edges),
+            heuristic_edges=len(heuristic_edges),
+        )
+
+        return nodes, merged_edges
+
     def _extract_entities(self, doc, doc_id: str) -> List[Dict]:
         """Extract entities from spaCy doc"""
         nodes = []

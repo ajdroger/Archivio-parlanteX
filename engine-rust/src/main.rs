@@ -8,6 +8,7 @@ mod providers;
 mod rag;
 mod routes;
 mod utils;
+mod websocket;
 
 use axum::{
     extract::State,
@@ -125,8 +126,10 @@ async fn run() -> anyhow::Result<()> {
 
     // Build protected routes (require auth)
     let protected_routes = Router::new()
-        // .route("/ingest", post(routes::ingest::handle_ingest))  // TODO: Complex handler trait issue - fix separately
+        .route("/ingest", post(routes::ingest::handle_ingest))
         .route("/query", post(routes::query::handle_query))
+        .route("/chat", post(routes::chat::handle_chat))  // Fase 6.2: Chat with hallucination detection
+        .route("/ws/collaborate", get(websocket::handler::handle_websocket))  // Fase 6.4: WebSocket collaboration
         .route(
             "/compare_contracts",
             post(routes::compare::handle_compare_contracts),

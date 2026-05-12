@@ -5,19 +5,19 @@
 #       due to Docker/WSL2 segfault issues during pip install.
 #       TODO: Install at runtime or use pre-built base image.
 
-FROM python:3.10-slim
+FROM python:3.10
 
 WORKDIR /app
 
-# Install minimal system dependencies (including build tools for wheel compilation)
+# Install minimal system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# NOTE: Skipping pip upgrade due to WSL2/Docker Desktop segfault issues
-# The default pip in python:3.11-slim should be sufficient for minimal dependencies
+# Upgrade pip to avoid TypeError in older pip versions
+RUN python3 -m pip install --upgrade pip
 
 # Install ONLY core dependencies (no ML/OCR for now)
 COPY requirements-minimal.txt .

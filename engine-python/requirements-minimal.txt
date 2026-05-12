@@ -1,12 +1,42 @@
-# Archivio Parlante — Python Worker Minimal Requirements
-# Core dependencies only
+# ============================================================================
+# Archivio Parlante — Python AI Worker Requirements (MINIMAL)
+# Core dependencies only, for initial testing
+# ============================================================================
 
+# Web framework
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
+
+# Pydantic for validation
 pydantic==2.9.2
 pydantic-settings==2.5.0
+
+# HTTP client
 httpx==0.28.0
+
+# Multipart file uploads
 python-multipart==0.0.12
+
+# Logging
 structlog==24.4.0
+
+# Environment
 python-dotenv==1.0.1
+
+# Retry logic
 tenacity==9.0.0
+
+# === Document parsing (minimal - no OCR, no complex extraction) ===
+pymupdf==1.24.12
+pdfplumber==0.11.4
+Pillow==11.0.0
+
+# === Direct ingestion script dependencies ===
+qdrant-client==1.12.0
+rich==13.7.1
+pymysql==1.1.0
+
+# === Testing ===
+pytest==8.3.3
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0

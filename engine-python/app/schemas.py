@@ -28,6 +28,7 @@ class ParseRequest(BaseModel):
             "image/jpeg",
             "image/jpg",
             "image/tiff",
+            "text/plain",
         ]
         if v not in allowed:
             raise ValueError(f"MIME type {v} not supported. Allowed: {allowed}")

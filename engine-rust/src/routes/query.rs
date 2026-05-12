@@ -22,10 +22,28 @@ pub struct QueryRequest {
     /// Number of final results after reranking (default: 5)
     #[serde(default = "default_top_k")]
     pub top_k: usize,
+
+    /// Retrieval mode: "hybrid" (default), "graph", or "hybrid+graph"
+    /// Fase 6.1: Knowledge Graph-guided retrieval
+    #[serde(default = "default_retrieval_mode")]
+    pub retrieval_mode: String,
+
+    /// Graph expansion depth for entity traversal (default: 2)
+    /// Only used when retrieval_mode contains "graph"
+    #[serde(default = "default_graph_depth")]
+    pub graph_expand_depth: u8,
 }
 
 fn default_top_k() -> usize {
     5
+}
+
+fn default_retrieval_mode() -> String {
+    "hybrid".to_string()
+}
+
+fn default_graph_depth() -> u8 {
+    2
 }
 
 /// Query response

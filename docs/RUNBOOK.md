@@ -1,7 +1,7 @@
 # 🔧 Archivio Parlante — Operational Runbook
 
-**Version**: 1.0  
-**Last Updated**: 2026-05-06  
+**Version**: 1.1  
+**Last Updated**: 2026-05-08  
 **Target Audience**: DevOps, SRE, System Administrators
 
 ---
@@ -417,6 +417,179 @@ docker volume rm archivio-parlantex_mysql_data
 docker-compose up -d mysql
 make migrate
 ```
+
+#### 6. Graph RAG Retrieval Returns No Results (Fase 6.1)
+
+**Symptoms**: Query with `"retrieval_mode": "graph"` returns empty or same results as hybrid.
+
+**Diagnosis**:
+```bash
+# Check if knowledge graph exists
+docker exec archivio-mysql mysql -uroot -pdevpass123 archivio_parlante_x \
+  -e "SELECT COUNT(*) FROM ap_graph_nodes WHERE kb_id='contracts_2024';"
+
+# Check if graph edges exist
+docker exec archivio-mysql mysql -uroot -pdevpass123 archivio_parlante_x \
+  -e "SELECT COUNT(*) FROM ap_graph_edges WHERE kb_id='contracts_2024';"
+```
+
+**Solutions**:
+- Graph not built yet: Wait for document ingestion to complete (check Python Worker logs)
+- LLM relation extraction failed: Check Ollama `qwen2.5:3b` model loaded
+  ```bash
+  docker exec archivio-ollama ollama list | grep qwen2.5:3b
+  # If missing:
+  docker exec archivio-ollama ollama pull qwen2.5:3b-instruct-q4_K_M
+  ```
+- Re-ingest document to trigger graph extraction:
+  ```bash
+  curl -X POST http://localhost:8090/ingest \
+    -H "X-Internal-Token: $RUST_ENGINE_INTERNAL_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"kb_id":"contracts_2024","content":"...","filename":"contract.pdf"}'
+  ```
+
+#### 7. Hallucination Detection Not Working (Fase 6.2)
+
+**Symptoms**: `hallucination_score` always 0.0 or missing in `/chat` response.
+
+**Diagnosis**:
+```bash
+# Test Python Worker hallucination endpoint directly
+curl -X POST http://localhost:8091/verify_hallucination \
+  -H "Content-Type: application/json" \
+  -d '{
+    "answer": "Test answer",
+    "sources": [{"text_quote": "Test quote", "doc_id": "123"}]
+  }'
+
+# Check if detector is loaded (Python Worker logs)
+# Should see: "HallucinationDetector preloaded and ready"
+```
+
+**Solutions**:
+- Python Worker not running: Start native process (see Starting & Stopping Services)
+- Redis cache not available: Check `docker ps | grep redis`
+- Verify `verify_hallucinations` parameter in request:
+  ```json
+  POST /chat
+  {
+    "kb_id": "contracts_2024",
+    "messages": [...],
+    "verify_hallucinations": true  // Must be explicit
+  }
+  ```
+- Check Rust Engine can reach Python Worker:
+  ```bash
+  docker exec archivio-rust-engine curl http://host.docker.internal:8091/health
+  ```
+
+#### 8. WebSocket Connection Drops Immediately (Fase 6.4)
+
+**Symptoms**: Frontend shows "Disconnected" immediately after connect.
+
+**Diagnosis**:
+```bash
+# Test WebSocket endpoint with wscat
+npm install -g wscat
+wscat -c "ws://localhost:8090/ws/collaborate/test_kb/test_doc?jwt=YOUR_JWT_TOKEN"
+
+# Check Rust Engine logs for WebSocket errors
+docker logs archivio-rust-engine --tail 50 | grep -i websocket
+```
+
+**Solutions**:
+- Invalid JWT token: Verify token not expired
+  ```bash
+  # Decode JWT to check expiry (use jwt.io or jwt-cli)
+  jwt decode $JWT_TOKEN
+  ```
+- Redis pub/sub not working:
+  ```bash
+  # Test Redis pub/sub manually
+  docker exec -it archivio-redis redis-cli
+  > SUBSCRIBE ws:collab:test_kb:test_doc
+  # In another terminal:
+  docker exec -it archivio-redis redis-cli
+  > PUBLISH ws:collab:test_kb:test_doc "test message"
+  ```
+- Firewall blocking WebSocket upgrade: Check CORS configuration in `.env`:
+  ```bash
+  CORS_ORIGINS=http://localhost:5173,http://localhost:8080
+  ```
+
+#### 9. Permission Denied on KB Access (Fase 6.3)
+
+**Symptoms**: `403 Forbidden` on `/query` or `/chat` even though user should have access.
+
+**Diagnosis**:
+```bash
+# Check user's workspace membership
+docker exec archivio-mysql mysql -uroot -pdevpass123 archivio_parlante_x \
+  -e "SELECT * FROM ap_workspace_members WHERE user_id=1;"
+
+# Check KB permissions
+docker exec archivio-mysql mysql -uroot -pdevpass123 archivio_parlante_x \
+  -e "SELECT * FROM ap_kb_permissions WHERE kb_id='contracts_2024';"
+
+# Check if KB is in a workspace
+docker exec archivio-mysql mysql -uroot -pdevpass123 archivio_parlante_x \
+  -e "SELECT * FROM ap_knowledge_bases WHERE id='contracts_2024';"
+```
+
+**Solutions**:
+- Permission cache stale: Clear Redis cache
+  ```bash
+  docker exec archivio-redis redis-cli KEYS "perm:*" | xargs docker exec archivio-redis redis-cli DEL
+  ```
+- User not added to workspace: Add via PHP Gateway API
+  ```bash
+  curl -X POST http://localhost:9080/api/workspaces/{workspace_id}/members \
+    -H "Authorization: Bearer $JWT_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"user_id": 1, "role": "member"}'
+  ```
+- KB not shared with workspace: Grant permission
+  ```bash
+  # Direct SQL insert (admin only)
+  docker exec archivio-mysql mysql -uroot -pdevpass123 archivio_parlante_x \
+    -e "INSERT INTO ap_kb_permissions (kb_id, workspace_id, permission, granted_by) 
+        VALUES ('contracts_2024', 'legal_team', 'read', 1);"
+  ```
+
+#### 10. Rust Compiler SIGSEGV During Build (Fase 6 Known Issue)
+
+**Symptoms**: `docker compose build rust-engine` fails with:
+```
+error: rustc interrupted by SIGSEGV, printing backtrace
+help: you can increase rustc's stack size by setting RUST_MIN_STACK=33554432
+```
+
+**Root Cause**: Insufficient stack size during `serde_derive` macro expansion in Docker build.
+
+**Solutions**:
+- **Option A** (Recommended): Increase Docker memory allocation
+  1. Docker Desktop → Settings → Resources
+  2. Memory: 8GB+ (from default 4GB)
+  3. Rebuild: `docker compose build rust-engine`
+
+- **Option B**: Increase Rust stack size in Dockerfile
+  ```dockerfile
+  # In engine-rust/Dockerfile, add before RUN cargo build:
+  ENV RUST_MIN_STACK=33554432
+  ```
+
+- **Option C**: Use native build instead of Docker (development only)
+  ```bash
+  cd engine-rust
+  cargo build --release
+  # Stop Docker Rust container
+  docker compose stop rust-engine
+  # Run native binary
+  RUST_ENGINE_INTERNAL_TOKEN=$TOKEN ./target/release/archivio-parlante-rust-engine
+  ```
+
+**Status**: Known blocker documented in `docs/FASE_6_INTEGRATION_TEST_BLOCKERS.md`
 
 ---
 

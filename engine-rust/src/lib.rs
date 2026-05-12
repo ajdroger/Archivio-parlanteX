@@ -11,3 +11,4 @@ pub mod providers;
 pub mod rag;
 pub mod routes;
 pub mod utils;
+pub mod websocket;

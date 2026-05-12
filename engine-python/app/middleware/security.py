@@ -25,6 +25,7 @@ ALLOWED_MIME_TYPES = {
     "image/jpeg",
     "image/jpg",
     "image/tiff",
+    "text/plain",
 }
 
 

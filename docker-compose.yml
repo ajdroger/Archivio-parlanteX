@@ -84,36 +84,37 @@ services:
   # Run natively on Windows instead (CUDA already configured):
   #   cd engine-python && .\venv\Scripts\Activate.ps1 && uvicorn app.main:app --host 0.0.0.0 --port 8091 --reload
   #
-  # python-worker:
-  #   build:
-  #     context: ./engine-python
-  #     dockerfile: Dockerfile
-  #   container_name: archivio-python-worker
-  #   ports:
-  #     - "8091:8091"
-  #   volumes:
-  #     - ./shared:/shared
-  #   environment:
-  #     - PYTHON_LOG_LEVEL=${PYTHON_LOG_LEVEL}
-  #     - OLLAMA_URL=http://host.docker.internal:11434
-  #     - MYSQL_HOST=host.docker.internal
-  #     - MYSQL_PORT=3307
-  #     - MYSQL_DB=${MYSQL_DB}
-  #     - MYSQL_USER=${MYSQL_USER}
-  #     - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-  #   networks:
-  #     - archivio_net
-  #   depends_on:
-  #     - ollama
-  #     - mysql
-  #   restart: unless-stopped
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: 1
-  #             capabilities: [gpu]
+  python-worker:
+    build:
+      context: ./engine-python
+      dockerfile: Dockerfile
+    container_name: archivio-python-worker
+    ports:
+      - "8091:8091"
+    volumes:
+      - ./shared:/shared
+    environment:
+      - PYTHON_LOG_LEVEL=${PYTHON_LOG_LEVEL}
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - MYSQL_HOST=host.docker.internal
+      - MYSQL_PORT=3307
+      - MYSQL_DB=${MYSQL_DB}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    networks:
+      - archivio_net
+    depends_on:
+      - ollama
+      - mysql
+    restart: unless-stopped
+    # We remove the GPU section since we're using minimal image for now. If needed, we can uncomment it later.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
 
   # ==========================================================================
   # Qdrant — Vector Database (Dense + Sparse Hybrid)
