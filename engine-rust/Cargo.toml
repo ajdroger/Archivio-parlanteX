@@ -39,8 +39,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 # Qdrant client (updated to match server v1.12.4)
-# Using reqwest feature for HTTP/1.1 REST API (fixes http2 protocol errors)
-qdrant-client = { version = "1.12", features = ["reqwest"] }
+# Using gRPC (default, HTTP/2) via port 6334
+qdrant-client = "1.12"
 
 # UUID
 uuid = { version = "1.11", features = ["v4", "serde"] }
