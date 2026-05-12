@@ -1,0 +1,95 @@
+# ============================================================================
+# Archivio Parlante — Observability Stack (Prometheus + Grafana)
+# ============================================================================
+# Services: Prometheus + Grafana + Node Exporter + cAdvisor
+# Network: archivio_net (shared with main stack)
+# Ports: Prometheus 9090, Grafana 3001 (NOT 3000 to avoid conflicts)
+
+services:
+  # ==========================================================================
+  # Prometheus — Metrics Collection & Storage
+  # ==========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: archivio-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - archivio_net
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Grafana — Visualization & Dashboards
+  # ==========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: archivio-grafana
+    ports:
+      - "3001:3000"  # Host 3001 -> Container 3000 (avoid conflict with frontend dev server)
+    volumes:
+      - ./observability/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+      - GF_INSTALL_PLUGINS=redis-datasource
+    networks:
+      - archivio_net
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Node Exporter — Host Metrics (CPU, RAM, Disk, Network)
+  # ==========================================================================
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: archivio-node-exporter
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      - '/:/host:ro,rslave'
+    networks:
+      - archivio_net
+    restart: unless-stopped
+
+  # ==========================================================================
+  # cAdvisor — Container Metrics (Docker)
+  # ==========================================================================
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: archivio-cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - archivio_net
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  archivio_net:
+    external: true  # Use existing network from docker-compose.yml

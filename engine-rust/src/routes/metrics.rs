@@ -52,39 +52,35 @@ lazy_static! {
     ).expect("metric can be created");
 }
 
+/// Initialize metrics registry (safe version returning Result)
+fn init_metrics_safe() -> Result<(), prometheus::Error> {
+    REGISTRY.register(Box::new(HTTP_REQUESTS_TOTAL.clone()))?;
+    REGISTRY.register(Box::new(HTTP_ERRORS_TOTAL.clone()))?;
+    REGISTRY.register(Box::new(HTTP_REQUESTS_IN_FLIGHT.clone()))?;
+    REGISTRY.register(Box::new(LLM_CALLS_TOTAL.clone()))?;
+    REGISTRY.register(Box::new(QDRANT_QUERIES_TOTAL.clone()))?;
+    REGISTRY.register(Box::new(DOCUMENTS_INGESTED_TOTAL.clone()))?;
+    REGISTRY.register(Box::new(CHUNKS_INDEXED_TOTAL.clone()))?;
+    Ok(())
+}
+
 /// Initialize metrics registry
 ///
-/// Call this once at application startup
+/// Call this once at application startup.
+/// Metrics failure is non-fatal - server will continue without metrics.
 pub fn init_metrics() {
-    REGISTRY
-        .register(Box::new(HTTP_REQUESTS_TOTAL.clone()))
-        .expect("collector can be registered");
-
-    REGISTRY
-        .register(Box::new(HTTP_ERRORS_TOTAL.clone()))
-        .expect("collector can be registered");
-
-    REGISTRY
-        .register(Box::new(HTTP_REQUESTS_IN_FLIGHT.clone()))
-        .expect("collector can be registered");
-
-    REGISTRY
-        .register(Box::new(LLM_CALLS_TOTAL.clone()))
-        .expect("collector can be registered");
-
-    REGISTRY
-        .register(Box::new(QDRANT_QUERIES_TOTAL.clone()))
-        .expect("collector can be registered");
-
-    REGISTRY
-        .register(Box::new(DOCUMENTS_INGESTED_TOTAL.clone()))
-        .expect("collector can be registered");
-
-    REGISTRY
-        .register(Box::new(CHUNKS_INDEXED_TOTAL.clone()))
-        .expect("collector can be registered");
-
-    tracing::info!("Prometheus metrics initialized");
+    match init_metrics_safe() {
+        Ok(_) => {
+            tracing::info!("Prometheus metrics initialized");
+        }
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "Failed to initialize Prometheus metrics - metrics endpoint will be unavailable"
+            );
+            tracing::warn!("Server will continue without metrics");
+        }
+    }
 }
 
 /// GET /metrics endpoint

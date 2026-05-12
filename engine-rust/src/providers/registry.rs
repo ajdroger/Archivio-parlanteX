@@ -26,6 +26,7 @@ impl LlmRegistry {
         let ollama = Arc::new(OllamaProvider::new(
             config.ollama_url.clone(),
             config.max_concurrent_llm_calls,
+            config.ollama_model_embed.clone(),
         ));
         providers.insert("ollama".to_string(), ollama);
 
@@ -111,6 +112,8 @@ mod tests {
             openai_api_key: None,
             deepseek_api_key: None,
             daily_cost_budget_eur: 0.0,
+            app_env: "dev".to_string(),
+            cors_origins: vec!["http://localhost:3000".to_string()],
         }
     }
 

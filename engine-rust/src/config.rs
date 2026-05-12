@@ -35,6 +35,9 @@ pub struct Config {
     /// MySQL database name
     pub mysql_db: String,
 
+    /// Redis URL for caching
+    pub redis_url: String,
+
     /// Internal auth token for PHP → Rust communication
     pub rust_engine_internal_token: String,
 
@@ -74,6 +77,13 @@ pub struct Config {
     // === Budget guard ===
     /// Daily cost budget in EUR (0.00 = disabled)
     pub daily_cost_budget_eur: f64,
+
+    // === Security & Environment ===
+    /// Application environment (dev, staging, production)
+    pub app_env: String,
+
+    /// CORS allowed origins
+    pub cors_origins: Vec<String>,
 }
 
 impl Config {
@@ -117,8 +127,20 @@ impl Config {
                 env::var("MYSQL_DB").unwrap_or_else(|_| "archivio_parlante_x".to_string())
             ),
 
-            rust_engine_internal_token: env::var("RUST_ENGINE_INTERNAL_TOKEN")
-                .context("RUST_ENGINE_INTERNAL_TOKEN must be set for auth")?,
+            redis_url: env::var("REDIS_URL")
+                .unwrap_or_else(|_| "redis://redis:6379".to_string()),
+
+            rust_engine_internal_token: {
+                let token = env::var("RUST_ENGINE_INTERNAL_TOKEN").unwrap_or_default();
+
+                // Validate: production mode requires non-empty token
+                let app_env = env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
+                if app_env == "production" && token.is_empty() {
+                    anyhow::bail!("RUST_ENGINE_INTERNAL_TOKEN required in production mode");
+                }
+
+                token
+            },
 
             // Chunking
             chunk_size_tokens: env::var("CHUNK_SIZE_TOKENS")
@@ -185,6 +207,28 @@ impl Config {
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(0.0),
+
+            // Environment & Security
+            app_env: env::var("APP_ENV")
+                .unwrap_or_else(|_| "dev".to_string()),
+
+            cors_origins: {
+                let origins_str = env::var("CORS_ORIGINS")
+                    .unwrap_or_else(|_| "http://localhost:3000,http://localhost:5173".to_string());
+
+                let origins: Vec<String> = origins_str
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .collect();
+
+                // Validate: production mode cannot use wildcard "*"
+                let app_env = env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
+                if app_env == "production" && origins.iter().any(|o| o == "*") {
+                    anyhow::bail!("CORS allow-all (*) forbidden in production mode");
+                }
+
+                origins
+            },
         })
     }
 

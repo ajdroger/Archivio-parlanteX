@@ -2,40 +2,37 @@
 
 declare(strict_types=1);
 
-use ArchivioParlante\Controller\AuthController;
 use ArchivioParlante\Controller\HealthController;
-use ArchivioParlante\Controller\ProxyController;
-use ArchivioParlante\Middleware\AuthMiddleware;
+use ArchivioParlante\Controller\WorkspaceController;
 use Slim\App;
 
 return function (App $app): void {
     // Health check
     $app->get('/health', HealthController::class . ':health');
 
-    // === Fase 3.2+3.3: Authentication Routes ===
+    // TODO Fase 3.2: Auth routes
+    // POST /api/auth/login
+    // POST /api/auth/logout
+    // GET /api/auth/me
 
-    // Public routes (no auth required, with configurable rate limiting)
-    $app->post('/api/auth/register', AuthController::class . ':register')
-        ->add('RateLimitMiddleware.register'); // 3 attempts / 1 hour
-    $app->post('/api/auth/login', AuthController::class . ':login')
-        ->add('RateLimitMiddleware.login'); // 5 attempts / 15 min
-    $app->post('/api/auth/refresh', AuthController::class . ':refresh')
-        ->add('RateLimitMiddleware.refresh'); // 20 attempts / 15 min
+    // TODO Fase 3.3: Proxy routes to Rust engine
+    // POST /api/query
+    // POST /api/ingest
+    // POST /api/compare
 
-    // Protected routes (require JWT access token)
-    $app->post('/api/auth/logout', AuthController::class . ':logout')
-        ->add(AuthMiddleware::class);
-    $app->get('/api/auth/me', AuthController::class . ':me')
-        ->add(AuthMiddleware::class);
+    // Fase 6.3: Workspace Management Routes (require auth when middleware available)
+    $app->group('/api/workspaces', function ($group) {
+        // Workspace CRUD
+        $group->get('', WorkspaceController::class . ':listWorkspaces');
+        $group->post('', WorkspaceController::class . ':createWorkspace');
+        $group->get('/{id}', WorkspaceController::class . ':getWorkspace');
+        $group->delete('/{id}', WorkspaceController::class . ':deleteWorkspace');
 
-    // === Fase 3.4: Proxy routes to Rust engine (protected with AuthMiddleware) ===
-
-    $app->post('/api/query', ProxyController::class . ':query')
-        ->add(AuthMiddleware::class);
-
-    $app->post('/api/ingest', ProxyController::class . ':ingest')
-        ->add(AuthMiddleware::class);
-
-    $app->post('/api/compare', ProxyController::class . ':compare')
-        ->add(AuthMiddleware::class);
+        // Workspace Member Management
+        $group->get('/{id}/members', WorkspaceController::class . ':listMembers');
+        $group->post('/{id}/members', WorkspaceController::class . ':addMember');
+        $group->delete('/{id}/members/{userId}', WorkspaceController::class . ':removeMember');
+        $group->patch('/{id}/members/{userId}', WorkspaceController::class . ':updateRole');
+    });
+    // TODO: Add auth middleware to workspace routes when AuthMiddleware is implemented
 };

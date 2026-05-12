@@ -16,16 +16,42 @@ FastAPI microservice for document parsing, OCR, reranking, and knowledge graph e
 
 ## Quick Start
 
-### Development
+### Native Execution (Recommended for Windows Development)
+
+**Note**: The Python Worker runs **natively on Windows** (not in Docker) due to build issues with ML dependencies in WSL2/Docker Desktop.
 
 ```bash
-# Install dependencies
+# 1. Create virtual environment (Python 3.11+ from python.org, NOT Microsoft Store)
 cd engine-python
-pip install -r requirements.txt
+python -m venv venv
 
-# Run server
-uvicorn app.main:app --reload --port 8091
+# 2. Activate virtual environment
+.\venv\Scripts\Activate.ps1  # PowerShell
+# OR
+venv\Scripts\activate.bat    # CMD
 
+# 3. Install core dependencies
+pip install -r requirements-minimal.txt
+
+# 4. Configure environment
+cp .env.example .env
+# Edit .env and set RUST_ENGINE_INTERNAL_TOKEN from root .env
+
+# 5. Run server
+uvicorn app.main:app --host 0.0.0.0 --port 8091 --reload
+
+# 6. (Optional) Install ML dependencies when needed
+pip install torch FlagEmbedding spacy networkx
+python -m spacy download it_core_news_lg
+```
+
+**Tesseract OCR** (optional, for scanned PDFs):
+- Download: https://github.com/UB-Mannheim/tesseract/wiki
+- Add to PATH or set `TESSERACT_CMD` in `.env`
+
+### Testing
+
+```bash
 # Run tests
 pytest
 
@@ -33,17 +59,10 @@ pytest
 pytest --cov=app --cov-report=term-missing
 ```
 
-### Docker
+### Docker (Not Currently Used)
 
-```bash
-# Build image
-docker build -t archivio-python-worker .
-
-# Run container
-docker run -p 8091:8091 \
-  -v $(pwd)/../shared:/shared \
-  archivio-python-worker
-```
+Docker execution is disabled due to persistent build failures with ML dependencies.
+See commit `47f09dc` for rationale.
 
 ## API Endpoints
 

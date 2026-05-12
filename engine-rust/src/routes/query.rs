@@ -11,7 +11,7 @@ use crate::rag::hybrid_search::HybridSearcher;
 use crate::routes::ingest::AppState;
 
 /// Query request
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct QueryRequest {
     /// User query text
     pub query: String,
@@ -22,14 +22,32 @@ pub struct QueryRequest {
     /// Number of final results after reranking (default: 5)
     #[serde(default = "default_top_k")]
     pub top_k: usize,
+
+    /// Retrieval mode: "hybrid" (default), "graph", or "hybrid+graph"
+    /// Fase 6.1: Knowledge Graph-guided retrieval
+    #[serde(default = "default_retrieval_mode")]
+    pub retrieval_mode: String,
+
+    /// Graph expansion depth for entity traversal (default: 2)
+    /// Only used when retrieval_mode contains "graph"
+    #[serde(default = "default_graph_depth")]
+    pub graph_expand_depth: u8,
 }
 
 fn default_top_k() -> usize {
     5
 }
 
+fn default_retrieval_mode() -> String {
+    "hybrid".to_string()
+}
+
+fn default_graph_depth() -> u8 {
+    2
+}
+
 /// Query response
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct QueryResponse {
     /// Search results (reranked and scored)
     pub results: Vec<SearchResult>,
@@ -42,7 +60,7 @@ pub struct QueryResponse {
 }
 
 /// Search result item
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct SearchResult {
     /// Chunk ID (UUID)
     pub chunk_id: String,

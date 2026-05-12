@@ -1,0 +1,24 @@
+# Benchmark Suite Dependencies
+# Install with: pip install -r requirements.txt
+
+# PDF Generation
+reportlab==4.0.9
+
+# Data Analysis & Visualization
+matplotlib==3.8.2
+pandas==2.1.4
+numpy==1.26.3
+
+# HTTP Client for API testing
+httpx==0.28.0
+aiofiles==25.1.0
+
+# CLI & Progress bars
+rich==13.7.0
+tqdm==4.66.1
+
+# Load testing
+locust==2.20.0
+
+# Metrics & Timing
+psutil==5.9.8

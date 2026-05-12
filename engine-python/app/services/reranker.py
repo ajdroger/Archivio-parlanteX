@@ -6,11 +6,14 @@ Model: BAAI/bge-reranker-v2-m3 (~560MB, multilingual)
 """
 
 import asyncio
-from typing import List, Tuple
+from typing import List, Tuple, TYPE_CHECKING
 
 import structlog
-import torch
-from FlagEmbedding import FlagReranker
+
+# Lazy import ML dependencies (not in minimal install)
+if TYPE_CHECKING:
+    import torch
+    from FlagEmbedding import FlagReranker
 
 from app.config import settings
 
@@ -27,7 +30,7 @@ class BGEReranker:
 
     def initialize(self) -> None:
         """
-        Initialize reranker model
+        Initialize reranker model (requires torch and FlagEmbedding)
 
         Lazy loading: called on first use or at startup.
         Auto-detects CUDA/CPU.
@@ -36,6 +39,20 @@ class BGEReranker:
             return
 
         logger.info("initializing_bge_reranker", model=settings.reranker_model)
+
+        # Lazy import ML dependencies
+        try:
+            import torch
+            from FlagEmbedding import FlagReranker
+        except ImportError as e:
+            logger.error("ml_dependencies_not_installed", error=str(e))
+            raise RuntimeError(
+                "ML dependencies not installed. Run: pip install torch FlagEmbedding"
+            ) from e
+
+        # Store for use in class
+        self._torch = torch
+        self._FlagReranker = FlagReranker
 
         # Auto-detect device
         if settings.reranker_device == "auto":
@@ -54,7 +71,7 @@ class BGEReranker:
 
         # Load model
         try:
-            self.model = FlagReranker(
+            self.model = self._FlagReranker(
                 settings.reranker_model,
                 use_fp16=self.device == "cuda",  # FP16 only on CUDA
                 device=self.device,

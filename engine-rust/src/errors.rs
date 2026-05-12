@@ -41,9 +41,17 @@ pub enum AppError {
     #[error("Internal error: {0}")]
     Internal(#[from] anyhow::Error),
 
-    /// Authentication/authorization error
+    /// Internal server error from string
+    #[error("Internal error: {0}")]
+    InternalError(String),
+
+    /// Authentication error (401)
     #[error("Unauthorized: {0}")]
     Unauthorized(String),
+
+    /// Authorization error / Permission denied (403)
+    #[error("Forbidden: {0}")]
+    Forbidden(String),
 
     /// Rate limit exceeded
     #[error("Rate limit exceeded: {0}")]
@@ -72,7 +80,13 @@ impl IntoResponse for AppError {
                 "INTERNAL_ERROR",
                 err.to_string(),
             ),
+            AppError::InternalError(msg) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                msg,
+            ),
             AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, "UNAUTHORIZED", msg),
+            AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, "FORBIDDEN", msg),
             AppError::RateLimitExceeded(msg) => (
                 StatusCode::TOO_MANY_REQUESTS,
                 "RATE_LIMIT_EXCEEDED",

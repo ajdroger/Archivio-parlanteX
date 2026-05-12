@@ -10,20 +10,37 @@ Strategies (in order):
 
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, TYPE_CHECKING, Any
 
-import fitz  # PyMuPDF
-import pdfplumber
 import structlog
-from PIL import Image
 from tenacity import retry, stop_after_attempt, wait_exponential
-from unstructured.partition.pdf import partition_pdf
+
+# Lazy import PDF libraries (not in minimal install - cause Docker/WSL2 segfault)
+if TYPE_CHECKING:
+    import fitz  # PyMuPDF
+    import pdfplumber
+    from PIL import Image
+    from unstructured.partition.pdf import partition_pdf
 
 from app.config import settings
 from app.schemas import ParsedChunk
 from app.services.ocr_service import OCRService
 
 logger = structlog.get_logger()
+
+
+def _import_pdf_libs():
+    """Lazy import PDF libraries with helpful error messages"""
+    try:
+        import fitz
+        import pdfplumber
+        from PIL import Image
+        return fitz, pdfplumber, Image
+    except ImportError as e:
+        logger.error("pdf_dependencies_not_installed", error=str(e))
+        raise RuntimeError(
+            "PDF dependencies not installed. Run: pip install PyMuPDF pdfplumber Pillow"
+        ) from e
 
 
 class PDFParser:
@@ -100,7 +117,8 @@ class PDFParser:
     def _parse_with_pymupdf(
         self, file_path: str, doc_id: str
     ) -> Tuple[List[ParsedChunk], int]:
-        """Parse with PyMuPDF"""
+        """Parse with PyMuPDF (requires PyMuPDF package)"""
+        fitz, _, _ = _import_pdf_libs()
         chunks = []
         doc = fitz.open(file_path)
 
@@ -125,7 +143,8 @@ class PDFParser:
     def _parse_with_pdfplumber(
         self, file_path: str, doc_id: str
     ) -> Tuple[List[ParsedChunk], int]:
-        """Parse with pdfplumber"""
+        """Parse with pdfplumber (requires pdfplumber package)"""
+        _, pdfplumber, _ = _import_pdf_libs()
         chunks = []
 
         with pdfplumber.open(file_path) as pdf:
@@ -151,7 +170,16 @@ class PDFParser:
     def _parse_with_unstructured(
         self, file_path: str, doc_id: str
     ) -> Tuple[List[ParsedChunk], int]:
-        """Parse with unstructured library"""
+        """Parse with unstructured library (requires unstructured package)"""
+        # Lazy import unstructured
+        try:
+            from unstructured.partition.pdf import partition_pdf
+        except ImportError as e:
+            logger.error("unstructured_not_installed", error=str(e))
+            raise RuntimeError(
+                "unstructured not installed. Run: pip install unstructured"
+            ) from e
+
         elements = partition_pdf(
             filename=file_path,
             strategy="auto",
@@ -184,9 +212,14 @@ class PDFParser:
     async def _parse_with_ocr(
         self, file_path: str, doc_id: str
     ) -> Tuple[List[ParsedChunk], int]:
-        """Parse with OCR"""
+        """Parse with OCR (requires PyMuPDF and OCR dependencies)"""
+        fitz, _, Image = _import_pdf_libs()
         chunks = []
         doc = fitz.open(file_path)
+
+        # Sanitize doc_id to prevent path traversal in temp files
+        from app.middleware.security import sanitize_filename
+        safe_doc_id = sanitize_filename(doc_id)
 
         for page_num, page in enumerate(doc, start=1):
             if page_num > settings.pdf_max_pages:
@@ -197,8 +230,8 @@ class PDFParser:
             pix = page.get_pixmap(dpi=settings.ocr_dpi)
             img_data = pix.tobytes("png")
 
-            # Save temporarily
-            temp_img_path = f"/tmp/{doc_id}_page_{page_num}.png"
+            # Save temporarily (safe_doc_id prevents directory traversal)
+            temp_img_path = f"/tmp/{safe_doc_id}_page_{page_num}.png"
             with open(temp_img_path, "wb") as f:
                 f.write(img_data)
 

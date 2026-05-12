@@ -1,0 +1,95 @@
+# ACCORDO DI PARTNERSHIP COMMERCIALE
+
+**Data**: 20 febbraio 2024
+**Parti contraenti**:
+- **Partner A**: Gamma Industries S.p.A., con sede in Torino, Corso Francia 200
+- **Partner B**: Delta Logistics S.r.l., con sede in Bologna, Via Indipendenza 78
+
+## Articolo 1 - Scopo dell'Accordo
+
+Le Parti concordano di collaborare per la distribuzione dei prodotti di Gamma Industries attraverso la rete logistica di Delta Logistics nel territorio italiano.
+
+Gamma Industries produrrà componenti elettronici destinati al settore automotive. Delta Logistics si occuperà dello stoccaggio, trasporto e consegna ai clienti finali.
+
+## Articolo 2 - Durata e Rinnovo
+
+Il presente accordo ha durata di **24 mesi** a partire dal 1 marzo 2024 e scadrà il **28 febbraio 2026**.
+
+L'accordo si rinnoverà automaticamente per ulteriori 12 mesi salvo disdetta scritta da parte di una delle Parti da comunicarsi almeno 90 giorni prima della scadenza.
+
+## Articolo 3 - Obblighi di Gamma Industries
+
+Gamma Industries si impegna a:
+- Fornire prodotti conformi agli standard ISO 9001 e ISO 14001
+- Consegnare i prodotti presso il magazzino di Delta Logistics entro 5 giorni lavorativi dall'ordine
+- Fornire documentazione tecnica e certificati di conformità per ogni lotto
+- Garantire disponibilità di pezzi di ricambio per 5 anni dalla data di produzione
+
+## Articolo 4 - Obblighi di Delta Logistics
+
+Delta Logistics si impegna a:
+- Stoccare i prodotti in ambienti climatizzati conformi alle specifiche tecniche
+- Consegnare ai clienti finali entro 48 ore dall'ordine
+- Gestire i resi e i reclami dei clienti secondo le procedure concordate
+- Mantenere un livello di servizio (SLA) del 98% di consegne puntuali
+
+## Articolo 5 - Corrispettivi e Modalità di Pagamento
+
+Delta Logistics riceverà un compenso pari al **15% del fatturato generato** dalle vendite dei prodotti Gamma Industries.
+
+Il pagamento avverrà mensilmente, entro il 15 del mese successivo, sulla base di un rendiconto dettagliato delle vendite.
+
+Per il primo anno, è garantito un minimo di **€120,000** annui, anche in caso di vendite inferiori.
+
+## Articolo 6 - Penali per Inadempimento
+
+**6.1** In caso di mancato rispetto degli standard di stoccaggio da parte di Delta Logistics, con conseguente danneggiamento dei prodotti, Delta Logistics corrisponderà a Gamma Industries una penale pari al **200% del valore della merce danneggiata**.
+
+**6.2** In caso di ritardo nelle consegne superiore a 72 ore (esclusi casi di forza maggiore), Delta Logistics corrisponderà al cliente finale una penale di **€50 per ogni giorno di ritardo**, a proprio carico.
+
+**6.3** Se Gamma Industries non rispetta i tempi di consegna al magazzino (5 giorni lavorativi), dovrà corrispondere a Delta Logistics una penale di **€100 al giorno** per ogni giorno di ritardo oltre il quinto.
+
+**6.4** Le penali di cui ai punti precedenti non escludono il diritto della Parte lesa di richiedere il risarcimento del maggior danno effettivamente subito.
+
+## Articolo 7 - Esclusiva Territoriale
+
+Delta Logistics avrà l'esclusiva per la distribuzione dei prodotti Gamma Industries nelle regioni di Emilia-Romagna, Marche, Umbria e Abruzzo.
+
+Gamma Industries potrà nominare altri distributori per le restanti regioni italiane, previa comunicazione a Delta Logistics.
+
+## Articolo 8 - Proprietà Intellettuale
+
+I marchi, brevetti e know-how tecnico di Gamma Industries rimangono di sua esclusiva proprietà. Delta Logistics è autorizzata all'uso dei marchi esclusivamente per attività promozionali concordate per iscritto.
+
+## Articolo 9 - Recesso Anticipato
+
+Ciascuna Parte potrà recedere anticipatamente dal contratto, con preavviso scritto di 6 mesi, nei seguenti casi:
+- Violazione grave degli obblighi contrattuali da parte dell'altra Parte
+- Apertura di procedure concorsuali (fallimento, concordato preventivo)
+- Cambio di controllo societario (cessione quote superiori al 50%)
+
+In caso di recesso per inadempimento, la Parte inadempiente dovrà corrispondere all'altra un indennizzo pari a **€50,000** oltre al risarcimento del danno.
+
+## Articolo 10 - Assicurazioni
+
+Delta Logistics si impegna a stipulare e mantenere attiva per tutta la durata dell'accordo una polizza assicurativa per responsabilità civile con massimale non inferiore a **€2,000,000**.
+
+## Articolo 11 - Forza Maggiore
+
+Nessuna delle Parti sarà ritenuta responsabile per ritardi o inadempienze causati da eventi di forza maggiore (calamità naturali, guerre, scioperi generali, pandemie).
+
+La Parte che invoca la forza maggiore dovrà comunicarlo all'altra entro 48 ore dall'evento.
+
+## Articolo 12 - Legge Applicabile
+
+Il presente accordo è regolato dalla legge italiana. Ogni controversia sarà sottoposta alla competenza esclusiva del Foro di Torino.
+
+## Firme
+
+**Per Gamma Industries S.p.A.**
+Giuseppe Verdi, Amministratore Delegato
+Data: 20 febbraio 2024
+
+**Per Delta Logistics S.r.l.**
+Francesca Neri, Direttore Generale
+Data: 20 febbraio 2024

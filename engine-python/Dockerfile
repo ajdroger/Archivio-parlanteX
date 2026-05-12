@@ -1,30 +1,27 @@
 # ============================================================================
-# Archivio Parlante — Python AI Worker Dockerfile
+# Archivio Parlante — Python AI Worker Dockerfile (MINIMAL BUILD)
 # ============================================================================
+# NOTE: Heavy ML dependencies (torch, FlagEmbedding, unstructured) are SKIPPED
+#       due to Docker/WSL2 segfault issues during pip install.
+#       TODO: Install at runtime or use pre-built base image.
 
-FROM python:3.11-slim
+FROM python:3.10
 
 WORKDIR /app
 
-# Install system dependencies for PDF parsing and OCR
+# Install minimal system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
-    ca-certificates \
-    tesseract-ocr \
-    tesseract-ocr-ita \
-    poppler-utils \
-    libmagic1 \
-    libgl1 \
-    libglib2.0-0 && \
+    ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY requirements.txt .
+# Upgrade pip to avoid TypeError in older pip versions
+RUN python3 -m pip install --upgrade pip
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Install ONLY core dependencies (no ML/OCR for now)
+COPY requirements-minimal.txt .
+RUN python3 -m pip install --no-cache-dir -r requirements-minimal.txt
 
 # Copy application code
 COPY app /app/app

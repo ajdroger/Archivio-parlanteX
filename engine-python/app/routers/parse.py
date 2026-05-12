@@ -53,11 +53,17 @@ async def parse_document(request: ParseRequest) -> ParseResponse:
         use_ocr=request.use_ocr,
     )
 
-    # Validate file exists
-    file_path = Path(request.file_path)
-    if not file_path.exists():
-        logger.error("file_not_found", file_path=request.file_path)
-        raise HTTPException(status_code=404, detail=f"File not found: {request.file_path}")
+    # Security validations
+    from app.middleware.security import validate_file_path, validate_mime_type, validate_file_size
+
+    # Validate MIME type against whitelist
+    validate_mime_type(request.mime_type)
+
+    # Validate file path (prevents directory traversal)
+    file_path = validate_file_path(request.file_path)
+
+    # Validate file size
+    validate_file_size(file_path)
 
     # Parse based on MIME type
     if request.mime_type == "application/pdf":
@@ -94,6 +100,28 @@ async def parse_document(request: ParseRequest) -> ParseResponse:
         except Exception as e:
             logger.error("ocr_failed", error=str(e), doc_id=request.doc_id)
             raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
+
+    elif request.mime_type == "text/plain":
+        # Text file parsing
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                text = f.read()
+
+            from app.schemas import ParsedChunk
+
+            chunks = [
+                ParsedChunk(
+                    text=text,
+                    page_number=1,
+                    metadata={"method": "text_read"},
+                )
+            ]
+            parsing_method = "text_read"
+            total_pages = 1
+
+        except Exception as e:
+            logger.error("text_read_failed", error=str(e), doc_id=request.doc_id)
+            raise HTTPException(status_code=500, detail=f"Text read failed: {str(e)}")
 
     else:
         raise HTTPException(

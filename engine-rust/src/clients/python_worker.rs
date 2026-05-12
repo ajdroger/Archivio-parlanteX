@@ -32,10 +32,12 @@ impl PythonWorkerClient {
         &self,
         file_path: String,
         doc_id: String,
+        kb_id: String,
+        mime_type: String,
     ) -> Result<ParsedDocument> {
         let url = format!("{}/parse", self.base_url);
 
-        let request = ParseDocumentRequest { file_path, doc_id };
+        let request = ParseDocumentRequest { file_path, doc_id, kb_id, mime_type };
 
         tracing::debug!(url = %url, "Sending parse request to Python worker");
 
@@ -227,6 +229,70 @@ impl PythonWorkerClient {
 
         Ok(kg)
     }
+
+    /// Verify hallucinations in LLM-generated answer
+    ///
+    /// # Arguments
+    /// * `answer` - LLM-generated answer to verify
+    /// * `sources` - Source documents with text_quote
+    pub async fn verify_hallucination(
+        &self,
+        answer: &str,
+        sources: &[crate::rag::citation_validator::SourceDocument],
+    ) -> Result<crate::rag::citation_validator::ValidationResult> {
+        let url = format!("{}/verify_hallucination", self.base_url);
+
+        let request = VerifyHallucinationRequest {
+            answer: answer.to_string(),
+            sources: sources
+                .iter()
+                .map(|s| VerifyHallucinationSource {
+                    text_quote: s.text_quote.clone(),
+                    doc_id: s.doc_id.clone(),
+                })
+                .collect(),
+        };
+
+        tracing::debug!(
+            url = %url,
+            sources_count = request.sources.len(),
+            "Sending hallucination verification request"
+        );
+
+        let response = self
+            .client
+            .post(&url)
+            .timeout(std::time::Duration::from_secs(60)) // Long timeout for claim extraction
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| {
+                AppError::PythonWorker(format!("Hallucination verification request failed: {}", e))
+            })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::PythonWorker(format!(
+                "Hallucination verification failed with status {}: {}",
+                status, body
+            )));
+        }
+
+        let result = response
+            .json::<crate::rag::citation_validator::ValidationResult>()
+            .await
+            .map_err(|e| AppError::PythonWorker(format!("Failed to parse response: {}", e)))?;
+
+        tracing::info!(
+            hallucination_score = result.hallucination_score,
+            flagged_claims = result.flagged_claims.len(),
+            total_claims = result.total_claims,
+            "Hallucination verification completed"
+        );
+
+        Ok(result)
+    }
 }
 
 // === Request/Response types ===
@@ -235,6 +301,8 @@ impl PythonWorkerClient {
 struct ParseDocumentRequest {
     file_path: String,
     doc_id: String,
+    kb_id: String,
+    mime_type: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -333,6 +401,19 @@ pub struct KgEdge {
     pub target_id: String,
     pub relation_type: String,
     pub properties: serde_json::Value,
+}
+
+#[derive(Debug, Serialize)]
+struct VerifyHallucinationRequest {
+    answer: String,
+    sources: Vec<VerifyHallucinationSource>,
+}
+
+#[derive(Debug, Serialize)]
+struct VerifyHallucinationSource {
+    text_quote: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    doc_id: Option<String>,
 }
 
 #[cfg(test)]
