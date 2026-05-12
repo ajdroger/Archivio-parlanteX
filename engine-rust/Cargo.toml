@@ -38,8 +38,8 @@ thiserror = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
-# Qdrant client (sarà usato in Fase 1)
-qdrant-client = "1.10"
+# Qdrant client (updated to match server v1.12.4)
+qdrant-client = "1.12"
 
 # UUID
 uuid = { version = "1.11", features = ["v4", "serde"] }
