@@ -67,12 +67,12 @@ impl QdrantWrapper {
         // Dense vector config (cosine similarity for semantic search)
         let dense_config = VectorParamsBuilder::new(self.dense_vector_size, Distance::Cosine).build();
 
-        // Sparse vector config (BM25 for keyword search)
-        let sparse_config = SparseVectorParamsBuilder::default().build();
+        // For now: single unnamed dense vector (simpler, works immediately)
+        // TODO: Add sparse vector support via named vectors in future update
+        let vectors_config = VectorsConfig::Params(dense_config);
 
-        // In qdrant-client 1.17, use the simplified builder pattern
         let create_request = CreateCollectionBuilder::new(&self.collection_name)
-            .vectors_config(dense_config)
+            .vectors_config(vectors_config)
             .build();
 
         self.client
@@ -80,7 +80,7 @@ impl QdrantWrapper {
             .await
             .map_err(|e| AppError::Qdrant(format!("Failed to create collection: {}", e)))?;
 
-        tracing::info!(collection = %self.collection_name, "Collection created successfully");
+        tracing::info!(collection = %self.collection_name, "Collection created successfully (dense only for now)");
 
         Ok(())
     }
@@ -106,23 +106,17 @@ impl QdrantWrapper {
                     payload.insert("metadata".to_string(), serde_json::to_string(&metadata).unwrap_or_default().into());
                 }
 
-                // Dense vector
-                let mut named_vectors: HashMap<String, QdrantVector> = HashMap::new();
-                named_vectors.insert("dense".to_string(), chunk.dense_embedding.into());
+                // Use UNNAMED vector (simpler, matches VectorsConfig::Params)
+                // TODO: Migrate to named vectors when implementing sparse properly
+                let vector = chunk.dense_embedding;
 
-                // Sparse vector (BM25 term weights from Python worker)
-                if let Some(sparse) = chunk.sparse_vector {
-                    // In qdrant-client 1.17, SparseVector can be converted directly
-                    let sparse_vec = qdrant_client::qdrant::SparseVector {
-                        indices: sparse.indices,
-                        values: sparse.values,
-                    };
-                    named_vectors.insert("sparse".to_string(), sparse_vec.into());
-                }
+                // Note: sparse_vector temporarily disabled until named vectors properly configured
+                // let mut named_vectors: HashMap<String, QdrantVector> = HashMap::new();
+                // named_vectors.insert("dense".to_string(), chunk.dense_embedding.into());
 
                 PointStruct::new(
                     chunk.id.clone(),
-                    named_vectors,
+                    vector,  // Unnamed vector
                     payload,
                 )
             })
@@ -131,7 +125,10 @@ impl QdrantWrapper {
         let points_count = points.len();
         tracing::debug!(points_count, "Upserting chunks to Qdrant");
 
-        let upsert_request = UpsertPointsBuilder::new(self.collection_name.clone(), points).build();
+        // IMPORTANT: wait=true ensures points are immediately queryable after upsert
+        let upsert_request = UpsertPointsBuilder::new(self.collection_name.clone(), points)
+            .wait(true) // Force synchronous write for immediate queryability
+            .build();
 
         self.client
             .upsert_points(upsert_request)
@@ -141,7 +138,7 @@ impl QdrantWrapper {
         tracing::info!(
             collection = %self.collection_name,
             chunks_count = points_count,
-            "Chunks upserted successfully"
+            "Chunks upserted successfully (wait=true)"
         );
 
         Ok(())

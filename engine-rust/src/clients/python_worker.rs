@@ -34,7 +34,7 @@ impl PythonWorkerClient {
         doc_id: String,
         kb_id: String,
         mime_type: String,
-    ) -> Result<ParsedDocument> {
+    ) -> Result<ParseResponse> {
         let url = format!("{}/parse", self.base_url);
 
         let request = ParseDocumentRequest { file_path, doc_id, kb_id, mime_type };
@@ -59,13 +59,15 @@ impl PythonWorkerClient {
         }
 
         let parsed = response
-            .json::<ParsedDocument>()
+            .json::<ParseResponse>()
             .await
             .map_err(|e| AppError::PythonWorker(format!("Failed to parse response: {}", e)))?;
 
         tracing::info!(
             doc_id = %parsed.doc_id,
-            pages = parsed.pages.len(),
+            chunks = parsed.chunks.len(),
+            parsing_method = %parsed.parsing_method,
+            processing_ms = parsed.processing_ms,
             "Document parsed successfully"
         );
 
@@ -305,31 +307,25 @@ struct ParseDocumentRequest {
     mime_type: String,
 }
 
+/// Response from Python worker /parse endpoint
 #[derive(Debug, Deserialize)]
-pub struct ParsedDocument {
+pub struct ParseResponse {
     pub doc_id: String,
-    pub pages: Vec<Page>,
-    pub metadata: DocumentMetadata,
+    pub kb_id: String,
+    pub chunks: Vec<ParsedChunk>,
+    pub total_chunks: usize,
+    pub total_pages: Option<usize>,
+    pub parsing_method: String,
+    pub processing_ms: usize,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct Page {
-    pub page_num: usize,
+/// A single parsed chunk of text
+#[derive(Debug, Clone, Deserialize)]
+pub struct ParsedChunk {
     pub text: String,
-    pub tables: Option<Vec<Table>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Table {
-    pub rows: Vec<Vec<String>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct DocumentMetadata {
-    pub title: Option<String>,
-    pub author: Option<String>,
-    pub created_at: Option<String>,
-    pub page_count: usize,
+    pub page_number: Option<usize>,
+    #[serde(default)]
+    pub metadata: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,0 +1,26 @@
+CONTRATTO DI FORNITURA N. 2024/001
+
+Data: 14 Maggio 2026
+Parti:
+- FORNITORE: Tech Solutions S.r.l., P.IVA 12345678901, Via Roma 10, Milano
+- CLIENTE: Archivio Digitale S.p.A., P.IVA 98765432109, Via Dante 25, Roma
+
+OGGETTO DEL CONTRATTO:
+Fornitura di servizi di digitalizzazione e archiviazione documentale per un periodo di 12 mesi.
+
+IMPORTO:
+Euro 50.000,00 (cinquantamila/00) oltre IVA.
+
+TERMINI DI PAGAMENTO:
+60% all'ordine, 40% a completamento entro 90 giorni dalla firma.
+
+PENALI:
+In caso di ritardo superiore a 30 giorni, penale del 2% per ogni settimana di ritardo.
+
+CLAUSOLA DI RISERVATEZZA:
+Tutte le informazioni scambiate sono da considerarsi confidenziali e non divulgabili a terzi.
+
+FORO COMPETENTE:
+Tribunale di Milano.
+
+Firmato digitalmente il 14/05/2026

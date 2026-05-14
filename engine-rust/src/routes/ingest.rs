@@ -61,15 +61,17 @@ pub async fn handle_ingest(
         .await?;
 
     let full_text = parsed
-        .pages
+        .chunks
         .iter()
-        .map(|p| p.text.as_str())
+        .map(|c| c.text.as_str())
         .collect::<Vec<_>>()
         .join("\n\n");
 
     tracing::info!(
-        pages = parsed.pages.len(),
+        chunks = parsed.chunks.len(),
+        total_pages = ?parsed.total_pages,
         text_length = full_text.len(),
+        parsing_method = %parsed.parsing_method,
         "Document parsed successfully"
     );
 

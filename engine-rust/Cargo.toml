@@ -38,9 +38,10 @@ thiserror = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
-# Qdrant client (updated to match server v1.12.4)
+# Qdrant client (compatible with server v1.18+)
 # Using gRPC (default, HTTP/2) via port 6334
-qdrant-client = "1.12"
+# Client and server versions must be within ±1 minor version
+qdrant-client = "1.18"
 
 # UUID
 uuid = { version = "1.11", features = ["v4", "serde"] }

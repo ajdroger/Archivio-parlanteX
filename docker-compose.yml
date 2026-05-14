@@ -119,8 +119,9 @@ services:
   # ==========================================================================
   # Qdrant — Vector Database (Dense + Sparse Hybrid)
   # ==========================================================================
+  # UPGRADED: v1.12.4 → latest (to match qdrant-client 1.18)
   qdrant:
-    image: qdrant/qdrant:v1.12.4
+    image: qdrant/qdrant:latest
     container_name: archivio-qdrant
     ports:
       - "6335:6333"  # REST API
