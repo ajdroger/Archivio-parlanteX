@@ -1,0 +1,30 @@
+apiVersion: v2
+name: archivio-parlante
+description: RAG enterprise system for forensic contract analysis - Zero-Cost Edition
+type: application
+version: 0.8.0
+appVersion: "0.8.0"
+
+keywords:
+  - rag
+  - llm
+  - kubernetes
+  - free-tier
+  - contracts
+  - legal-tech
+
+maintainers:
+  - name: Archivio Parlante Team
+    email: ajmeer03@gmail.com
+
+home: https://github.com/<your-repo>/archivio-parlante
+
+sources:
+  - https://github.com/<your-repo>/archivio-parlante
+
+# Dependencies (we'll install these separately for more control)
+# dependencies:
+#   - name: mysql
+#     version: 9.x.x
+#     repository: https://charts.bitnami.com/bitnami
+#     condition: mysql.enabled

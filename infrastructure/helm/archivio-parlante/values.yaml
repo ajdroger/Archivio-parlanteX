@@ -1,0 +1,467 @@
+# ============================================================================
+# Archivio Parlante - Helm Values (Oracle Cloud Free Tier Optimized)
+# ============================================================================
+# Total RAM Usage: ~18GB / 24GB available
+# Total Storage: ~100GB / 200GB available
+# Cost: €0.00/month
+
+global:
+  # Environment
+  environment: production
+
+  # Namespace
+  namespace: archivio-parlante
+
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+
+  # Storage class (will be created by provisioner)
+  storageClass: local-path  # k3s default
+
+# ============================================================================
+# PHP Gateway (API Gateway & Auth)
+# ============================================================================
+phpGateway:
+  enabled: true
+
+  # Replicas
+  replicaCount: 2  # HA with minimal overhead
+
+  image:
+    repository: archivio-parlantex-php-gateway
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # Resource limits (OPTIMIZED for free tier)
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Service
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+
+  # Environment variables
+  env:
+    - name: APP_ENV
+      value: "production"
+    - name: APP_DEBUG
+      value: "false"
+    - name: RUST_ENGINE_URL
+      value: "http://rust-engine:8090"
+
+  # Health checks
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 80
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /
+      port: 80
+    initialDelaySeconds: 10
+    periodSeconds: 5
+
+# ============================================================================
+# Rust Engine (Core RAG Orchestrator)
+# ============================================================================
+rustEngine:
+  enabled: true
+
+  # Replicas
+  replicaCount: 2
+
+  image:
+    repository: archivio-parlantex-rust-engine
+    tag: latest
+
+  # Resource limits
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+  service:
+    type: ClusterIP
+    port: 8090
+
+  env:
+    - name: RUST_LOG
+      value: "info"
+    - name: OLLAMA_URL
+      value: "http://ollama:11434"
+    - name: QDRANT_URL
+      value: "http://qdrant:6334"  # gRPC port
+    - name: PYTHON_WORKER_URL
+      value: "http://python-worker:8091"
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8090
+    initialDelaySeconds: 30
+    periodSeconds: 15
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8090
+    initialDelaySeconds: 15
+    periodSeconds: 10
+
+# ============================================================================
+# Python Worker (PDF Parser, Reranker, KG)
+# ============================================================================
+pythonWorker:
+  enabled: true
+
+  replicaCount: 2
+
+  image:
+    repository: archivio-parlantex-python-worker
+    tag: latest
+
+  # Resource limits (ML workloads need more RAM)
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+  service:
+    type: ClusterIP
+    port: 8091
+
+  env:
+    - name: PYTHON_LOG_LEVEL
+      value: "INFO"
+    - name: OLLAMA_URL
+      value: "http://ollama:11434"
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8091
+    initialDelaySeconds: 45
+    periodSeconds: 20
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8091
+    initialDelaySeconds: 30
+    periodSeconds: 15
+
+# ============================================================================
+# Qdrant (Vector Database)
+# ============================================================================
+qdrant:
+  enabled: true
+
+  # Single replica for free tier (cluster mode requires 3+ nodes)
+  replicaCount: 1
+
+  image:
+    repository: qdrant/qdrant
+    tag: latest
+
+  # Resource limits (vector DB needs memory)
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+  service:
+    type: ClusterIP
+    restPort: 6333
+    grpcPort: 6334
+
+  # Persistent storage
+  persistence:
+    enabled: true
+    size: 50Gi
+    mountPath: /qdrant/storage
+    # Will use local-path provisioner (k3s default)
+
+  # Configuration
+  config:
+    # Optimize for low memory
+    service:
+      grpc_port: 6334
+    storage:
+      # Use mmap for memory efficiency
+      optimizers:
+        default_segment_number: 2
+        indexing_threshold: 10000
+
+# ============================================================================
+# Ollama (Local LLM - CPU Only)
+# ============================================================================
+ollama:
+  enabled: true
+
+  # Single replica (LLM is stateful)
+  replicaCount: 1
+
+  image:
+    repository: ollama/ollama
+    tag: latest
+
+  # Resource limits (CPU-only, needs memory for model)
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"  # Allow burst for inference
+
+  service:
+    type: ClusterIP
+    port: 11434
+
+  # Persistent storage for models
+  persistence:
+    enabled: true
+    size: 30Gi
+    mountPath: /root/.ollama
+
+  # Models to pull on first start
+  models:
+    - "qwen2.5:7b-instruct-q4_K_M"   # Main chat model
+    - "qwen2.5:3b-instruct-q4_K_M"   # Small/fast model
+    - "nomic-embed-text"              # Embeddings
+
+  # Node affinity (prefer worker node with more resources)
+  nodeSelector:
+    kubernetes.io/hostname: archivio-k3s-worker
+
+# ============================================================================
+# MySQL (Relational Database)
+# ============================================================================
+mysql:
+  enabled: true
+
+  replicaCount: 1  # No HA in free tier
+
+  image:
+    repository: mysql
+    tag: "8.0"
+
+  # Resource limits
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+  service:
+    type: ClusterIP
+    port: 3306
+
+  # Persistent storage
+  persistence:
+    enabled: true
+    size: 20Gi
+    mountPath: /var/lib/mysql
+
+  # Root password (will be set via secret)
+  auth:
+    rootPasswordSecret: mysql-root-password
+    database: archivio_parlante_x
+    username: archivio
+    passwordSecret: mysql-user-password
+
+  # Configuration
+  config:
+    # Optimize for low memory
+    innodb_buffer_pool_size: "512M"
+    innodb_log_file_size: "128M"
+    max_connections: "100"
+
+# ============================================================================
+# Redis (Cache & Rate Limiting)
+# ============================================================================
+redis:
+  enabled: true
+
+  replicaCount: 1
+
+  image:
+    repository: redis
+    tag: "7-alpine"
+
+  # Resource limits (cache can be small)
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+  service:
+    type: ClusterIP
+    port: 6379
+
+  # Configuration
+  config:
+    maxmemory: "200mb"
+    maxmemory-policy: "allkeys-lru"
+    save: ""  # Disable persistence (ephemeral cache)
+
+# ============================================================================
+# Monitoring (Prometheus + Grafana - Lightweight)
+# ============================================================================
+monitoring:
+  enabled: true
+
+  prometheus:
+    enabled: true
+    replicaCount: 1
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+    retention: 7d  # Short retention for free tier
+
+    storage:
+      size: 10Gi
+
+  grafana:
+    enabled: true
+    replicaCount: 1
+
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+
+    # Default admin credentials (CHANGE IN PRODUCTION)
+    adminPassword: "admin123"  # TODO: Move to secret
+
+  loki:
+    enabled: true
+    replicaCount: 1
+
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+
+    retention: 3d  # Very short for free tier
+
+    storage:
+      size: 5Gi
+
+# ============================================================================
+# Ingress (for Cloudflare Tunnel)
+# ============================================================================
+ingress:
+  enabled: false  # Using Cloudflare Tunnel instead
+
+  # If you want to use nginx-ingress later:
+  # className: nginx
+  # annotations:
+  #   cert-manager.io/cluster-issuer: letsencrypt-prod
+  # hosts:
+  #   - host: archivio.yourdomain.com
+  #     paths:
+  #       - path: /
+  #         pathType: Prefix
+  #         backend:
+  #           service:
+  #             name: php-gateway
+  #             port:
+  #               number: 80
+
+# ============================================================================
+# Autoscaling (HPA - Horizontal Pod Autoscaler)
+# ============================================================================
+autoscaling:
+  # Disabled for free tier (fixed replicas)
+  # Enable when you have metrics-server and more resources
+  enabled: false
+
+  phpGateway:
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+  rustEngine:
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# ============================================================================
+# Pod Disruption Budgets (for HA)
+# ============================================================================
+podDisruptionBudget:
+  enabled: true
+
+  phpGateway:
+    minAvailable: 1
+
+  rustEngine:
+    minAvailable: 1
+
+# ============================================================================
+# Network Policies (Security)
+# ============================================================================
+networkPolicy:
+  enabled: false  # Enable after testing basic deployment
+
+  # When enabled, these rules will apply:
+  # - php-gateway can talk to rust-engine
+  # - rust-engine can talk to python-worker, qdrant, ollama, mysql, redis
+  # - python-worker can talk to ollama
+  # - All can egress to internet (for API calls)
+
+# ============================================================================
+# Secrets (will be created separately)
+# ============================================================================
+secrets:
+  # MySQL passwords
+  mysqlRootPassword: ""  # Set via: kubectl create secret
+  mysqlUserPassword: ""
+
+  # JWT secret
+  jwtSecret: ""
+
+  # Rust engine internal token
+  rustEngineToken: ""
+
+  # API keys (optional, for cloud providers)
+  anthropicApiKey: ""
+  googleApiKey: ""
+  openaiApiKey: ""
