@@ -92,13 +92,25 @@ impl HybridSearcher {
 
         tracing::debug!(dense_count = dense_results.len(), "Dense search completed");
 
-        // Step 4: Sparse search
-        let sparse_results = self
+        // Step 4: Sparse search (fallback to dense-only if sparse not available)
+        let sparse_results = match self
             .qdrant
             .search_sparse(query_sparse, self.top_k_sparse, filter)
-            .await?;
-
-        tracing::debug!(sparse_count = sparse_results.len(), "Sparse search completed");
+            .await
+        {
+            Ok(results) => {
+                tracing::debug!(sparse_count = results.len(), "Sparse search completed");
+                results
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "Sparse search failed (collection may not have sparse vectors), using dense-only mode"
+                );
+                // Return empty sparse results, effectively making this dense-only search
+                Vec::new()
+            }
+        };
 
         // Step 5: Fuse with RRF
         let fused = self.fuse_with_rrf(dense_results, sparse_results, top_k);

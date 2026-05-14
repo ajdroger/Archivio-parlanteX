@@ -156,7 +156,8 @@ impl QdrantWrapper {
             query_embedding,
             top_k as u64,
         )
-        .vector_name("dense")
+        // Note: Using unnamed vector (default), not named "dense"
+        // .vector_name("dense")  // Commented out - using default unnamed vector
         .with_payload(true)
         .filter(filter.unwrap_or_default());
 

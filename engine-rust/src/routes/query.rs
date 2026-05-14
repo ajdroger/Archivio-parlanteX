@@ -148,8 +148,32 @@ pub async fn handle_query(
         }));
     }
 
-    // Step 5: Rerank with BGE cross-encoder
-    let reranked = rerank_results(&state, &req.query, candidates, req.top_k).await?;
+    // Step 5: Rerank with BGE cross-encoder (fallback to candidates if reranker unavailable)
+    let reranked = match rerank_results(&state, &req.query, candidates.clone(), req.top_k).await {
+        Ok(results) => {
+            tracing::debug!(reranked_count = results.len(), "Reranking completed successfully");
+            results
+        }
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "Reranking failed (reranker may not be available), using RRF results directly"
+            );
+            // Fallback: return top_k candidates from hybrid search (already RRF-ranked), converting to SearchResult
+            candidates
+                .into_iter()
+                .take(req.top_k)
+                .map(|candidate| SearchResult {
+                    chunk_id: candidate.id.clone(),
+                    doc_id: candidate.doc_id.clone(),
+                    chunk_index: candidate.chunk_index,
+                    text: candidate.text.clone(),
+                    score: candidate.score,
+                    metadata: None,
+                })
+                .collect()
+        }
+    };
 
     let processing_ms = start.elapsed().as_millis() as u64;
 
