@@ -12,42 +12,74 @@
 
 ### 1. Docker Desktop
 
+**🔍 Verifica installazione:**
+
 ```powershell
-# Verifica installazione
+# Verifica se Docker è installato
 docker --version
 docker compose version
+
+# Verifica se Docker Desktop sta running
+docker info
 ```
 
 **Output atteso:**
 ```
 Docker version 24.x.x
 Docker Compose version v2.x.x
+Server:
+ Containers: X
+ Running: X
+ ...
 ```
 
-❌ **Se non installato:**
+✅ **Se vedi output sopra:** Docker installato e running, vai al prossimo step!
+
+❌ **Se comando non trovato:**
 1. Download: https://www.docker.com/products/docker-desktop/
 2. Installa Docker Desktop
 3. Avvia Docker Desktop (icona nella system tray)
 4. Aspetta che sia "Running" (verde)
+5. Riprova comandi sopra
+
+❌ **Se errore "Cannot connect to Docker daemon":**
+```powershell
+# Docker non sta running - aprilo manualmente
+# 1. Cerca "Docker Desktop" nel menu Start
+# 2. Avvialo
+# 3. Aspetta icona verde nella system tray
+# 4. Riprova: docker info
+```
 
 ### 2. Node.js e npm
 
+**🔍 Verifica installazione:**
+
 ```powershell
-# Verifica installazione
+# Verifica se Node.js è installato
 node --version
 npm --version
+
+# Verifica percorso installazione
+where.exe node
+where.exe npm
 ```
 
 **Output atteso:**
 ```
-v18.x.x o v20.x.x
-9.x.x o 10.x.x
+v18.x.x o v20.x.x (o v22.x.x)
+9.x.x o 10.x.x (o 11.x.x)
+C:\Program Files\nodejs\node.exe
+C:\Program Files\nodejs\npm.cmd
 ```
 
-❌ **Se non installato:**
-1. Download: https://nodejs.org/ (versione LTS)
+✅ **Se vedi versioni sopra:** Node.js installato, vai al prossimo step!
+
+❌ **Se comando non trovato:**
+1. Download: https://nodejs.org/ (versione LTS - recommended)
 2. Installa con opzioni default
 3. Riapri PowerShell
+4. Riprova comandi sopra
 
 ### 3. Git
 
@@ -63,17 +95,67 @@ git --version
 
 ### Step 1.1: Verifica File .env (2 min)
 
+**🔍 Controlla se .env esiste già:**
+
 ```powershell
 # Sei nella root del progetto
 cd C:\Users\aj_93\OneDrive\Documenti\GitHub\Archivio-parlanteX
 
-# Verifica .env esista
+# Verifica se .env esiste
+Test-Path .env
+
+# Se TRUE, verifica contenuto
 Get-Content .env | Select-String "MYSQL_PASSWORD"
+Get-Content .env | Select-String "RUST_ENGINE_INTERNAL_TOKEN"
+Get-Content .env | Select-String "OLLAMA_MODEL_CHAT"
 ```
 
-✅ Output mostra `MYSQL_PASSWORD=devpass123`? Perfetto!
+**Output atteso:**
+```
+True
+MYSQL_PASSWORD=devpass123
+RUST_ENGINE_INTERNAL_TOKEN=1c5b997b0c11c412ca0...
+OLLAMA_MODEL_CHAT=qwen2.5:7b-instruct-q4_K_M
+```
+
+✅ **Se vedi output sopra:** .env configurato correttamente, vai al prossimo step!
+
+❌ **Se file non esiste o mancano valori:**
+```powershell
+# Copia da esempio
+Copy-Item .env.example .env
+
+# Verifica di nuovo
+Get-Content .env | Select-String "MYSQL"
+```
 
 ### Step 1.2: Download Modelli Ollama (PRIMA VOLTA - 10 min)
+
+**🔍 Prima controlla se i modelli sono già scaricati:**
+
+```powershell
+# Verifica se Ollama container esiste già
+docker ps -a | Select-String "ollama"
+
+# Se esiste, verifica modelli già scaricati
+docker exec archivio-ollama ollama list 2>$null
+
+# Output mostra i 3 modelli? Salta al Step 1.3!
+```
+
+**Se vedi i 3 modelli già scaricati:**
+```
+NAME                              ID              SIZE
+qwen2.5:7b-instruct-q4_K_M        abc123...       4.7 GB
+qwen2.5:3b-instruct-q4_K_M        def456...       2.0 GB
+nomic-embed-text:latest           ghi789...       274 MB
+```
+
+✅ **Modelli già presenti? SALTA QUESTO STEP**, vai a Step 1.3!
+
+---
+
+**❌ Se container non esiste o modelli mancanti:**
 
 **⚠️ IMPORTANTE:** Fai questo PRIMA di avviare lo stack (solo la prima volta).
 
@@ -83,6 +165,9 @@ docker compose up -d ollama
 
 # Aspetta 30 secondi che Ollama si avvii
 Start-Sleep -Seconds 30
+
+# Verifica Ollama risponde
+docker exec archivio-ollama ollama --version
 
 # Scarica modelli (questo richiede tempo!)
 docker exec archivio-ollama ollama pull qwen2.5:7b-instruct-q4_K_M
@@ -106,6 +191,26 @@ nomic-embed-text:latest           ghi789...       274 MB    X minutes ago
 💡 **Tip:** Fai questo mentre leggi il resto della guida!
 
 ### Step 1.3: Avvia Stack Completo (3 min)
+
+**🔍 Prima controlla se i servizi sono già running:**
+
+```powershell
+# Verifica se container sono già avviati
+docker compose ps
+
+# Verifica porte occupate
+netstat -ano | findstr ":8090"  # Rust Engine
+netstat -ano | findstr ":8091"  # Python Worker
+netstat -ano | findstr ":9080"  # PHP Gateway
+```
+
+**Se vedi container già "Up" e porte occupate:**
+
+✅ **Stack già running!** Vai direttamente a Step 1.4 (Health Checks)
+
+---
+
+**❌ Se container non esistono o sono "Exited":**
 
 ```powershell
 # Avvia tutti i servizi
@@ -200,17 +305,77 @@ qdrant - vector search engine
 
 ### Step 2.1: Installa Dipendenze (PRIMA VOLTA - 3 min)
 
+**🔍 Prima controlla se dipendenze sono già installate:**
+
 ```powershell
 # Vai nella cartella frontend
 cd frontend
 
+# Verifica se node_modules esiste
+Test-Path node_modules
+
+# Verifica se package-lock.json esiste
+Test-Path package-lock.json
+
+# Conta pacchetti installati
+if (Test-Path node_modules) { 
+    (Get-ChildItem node_modules -Directory).Count 
+}
+```
+
+**Se vedi:**
+```
+True
+True
+XXX  (numero di pacchetti > 500)
+```
+
+✅ **Dipendenze già installate!** Vai a Step 2.2!
+
+---
+
+**❌ Se node_modules non esiste o è vuoto:**
+
+```powershell
 # Installa dipendenze
 npm install
 ```
 
 ⏳ **Tempo:** ~2-3 minuti (scarica pacchetti)
 
+**Verifica installazione completata:**
+```powershell
+Test-Path node_modules/@vitejs/plugin-react
+# Output: True = installazione OK
+```
+
 ### Step 2.2: Configura Environment Frontend (1 min)
+
+**🔍 Prima controlla se .env.local esiste già:**
+
+```powershell
+# Verifica se file esiste (devi essere in frontend/)
+Test-Path .env.local
+
+# Se esiste, vedi contenuto
+if (Test-Path .env.local) {
+    Get-Content .env.local
+}
+```
+
+**Se vedi output corretto:**
+```
+VITE_API_URL=http://localhost:9080
+VITE_RUST_ENGINE_URL=http://localhost:8090
+VITE_APP_NAME=Archivio Parlante
+VITE_APP_ENV=development
+```
+
+✅ **.env.local già configurato!** Vai a Step 2.3!
+
+---
+
+**❌ Se file non esiste o è sbagliato:**
 
 ```powershell
 # Crea file .env.local per frontend
@@ -220,9 +385,30 @@ VITE_RUST_ENGINE_URL=http://localhost:8090
 VITE_APP_NAME=Archivio Parlante
 VITE_APP_ENV=development
 "@ | Out-File -FilePath .env.local -Encoding utf8
+
+# Verifica creazione
+Get-Content .env.local
 ```
 
 ### Step 2.3: Avvia Dev Server (1 min)
+
+**🔍 Prima controlla se dev server è già running:**
+
+```powershell
+# Verifica se porta 5173 è occupata
+netstat -ano | findstr ":5173"
+
+# Se vedi output, server già running!
+# Apri browser: http://localhost:5173
+```
+
+**Se porta 5173 è occupata:**
+
+✅ **Dev server già running!** Apri http://localhost:5173 nel browser!
+
+---
+
+**❌ Se porta libera (nessun output):**
 
 ```powershell
 # Avvia Vite dev server
@@ -239,6 +425,13 @@ npm run dev
 ```
 
 ✅ **Frontend RUNNING!**
+
+**Verifica funzionamento:**
+```powershell
+# In un'altra finestra PowerShell
+curl.exe http://localhost:5173
+# Dovresti vedere HTML della app
+```
 
 ---
 
