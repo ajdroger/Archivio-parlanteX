@@ -1,7 +1,7 @@
 # 👤 Manuale Amministratore — Archivio Parlante
 
 > **Audience**: System Administrators, Application Administrators  
-> **Versione**: v0.7.0  
+> **Versione**: v0.8.0  
 > **Ultimo aggiornamento**: 2026-05-12
 
 ---

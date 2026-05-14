@@ -2,7 +2,7 @@
 
 **Tempo di lettura**: 5 minuti  
 **Obiettivo**: Dalla prima query al risultato RAG in 10 minuti  
-**Versione**: 0.7.0
+**Versione**: 0.8.0
 
 ---
 

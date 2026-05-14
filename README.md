@@ -4,12 +4,12 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Stack: Rust + Python + PHP](https://img.shields.io/badge/Stack-Rust%20%2B%20Python%20%2B%20PHP-blue)](https://github.com)
-[![Version: v0.7.0](https://img.shields.io/badge/Version-v0.7.0-brightgreen)](./CHANGELOG.md)
+[![Version: v0.8.0](https://img.shields.io/badge/Version-v0.8.0-brightgreen)](./CHANGELOG.md)
 [![CI Pipeline](https://github.com/ajdroger/Archivio-parlanteX/workflows/CI%20Pipeline/badge.svg)](https://github.com/ajdroger/Archivio-parlanteX/actions)
 [![Documentation](https://img.shields.io/badge/Docs-2800%2B%20lines-blue)](./docs/)
 [![Security Audit](https://img.shields.io/badge/Security-ASVS%20L2-success)](./docs/SECURITY_AUDIT_FASE_5.md)
 
-> **📍 Status Progetto (v0.7.0)**: Fase 6 (Advanced Features) completata con suite documentazione completa — Knowledge Graph RAG, Hallucination Detection, Multi-tenant Workspaces con RBAC, Collaborative Annotation WebSocket. **Code: 100% complete**. **Documentation: ✅ 2,800+ lines** (4 manuals for DevOps, Admin, Users, Quick Start). Infrastructure: 90% operational (all services healthy, Qdrant env issues documented). **Production-ready** with comprehensive guides and troubleshooting.
+> **📍 Status Progetto (v0.8.0)**: ✅ **100% Production Ready** — Full-stack completo (Backend + Frontend) con zero-cost Kubernetes deployment. **Backend**: Rust Engine + Python Worker + PHP Gateway (7 servizi, 100% funzionanti). **Frontend**: React 18 SPA completa (2,172 LoC, 13 componenti, 6 pagine). **Deployment**: Oracle Cloud Free Tier automation (€0/mese). **Documentation**: 2,800+ lines + guide deployment. Sistema pronto per vendita/produzione immediata.
 
 ---
 

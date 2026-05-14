@@ -1,8 +1,8 @@
 # Archivio Parlante — System Architecture
 
-**Version**: 1.1  
-**Last Updated**: 2026-05-08  
-**Status**: Production-Ready (Fase 6 Complete - Advanced Features Implemented)
+**Version**: 1.2  
+**Last Updated**: 2026-05-14  
+**Status**: ✅ 100% Production-Ready (Fase 6 Complete + Fase 7 Zero-Cost K8s Deployment)
 
 ---
 

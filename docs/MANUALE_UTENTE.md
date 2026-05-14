@@ -1,6 +1,6 @@
 # 📚 Manuale Utente — Archivio Parlante
 
-**Versione**: 0.7.0  
+**Versione**: 0.8.0  
 **Data**: 2026-05-12  
 **Audience**: Utenti finali (analisti, consulenti legali, revisori)  
 **Prerequisiti**: Account attivo fornito dall'amministratore
