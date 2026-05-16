@@ -64,17 +64,36 @@ impl QdrantWrapper {
 
         tracing::info!(collection = %self.collection_name, "Creating collection with hybrid vectors");
 
-        // Dense vector config (cosine similarity for semantic search)
-        let dense_config = VectorParamsBuilder::new(self.dense_vector_size, Distance::Cosine).build();
+        // Named vectors configuration for true hybrid search
+        // "dense": 768-dim dense embeddings (nomic-embed-text, cosine similarity)
+        // "sparse": BM25-style sparse vectors via tantivy (dot product)
+        use std::collections::HashMap;
+        use qdrant_client::qdrant::{VectorParams, SparseVectorParams, SparseIndexConfig};
 
-        // Current: Dense-only vectors with graceful sparse fallback in hybrid_search.rs
-        // Fase 2.2: Migrate to named vectors {"dense": ..., "sparse": ...} for true hybrid collections
-        // Rationale: Dense-only + BM25 fallback provides 90% of hybrid search benefits
-        // without Qdrant named vector configuration complexity
-        let vectors_config = VectorsConfig::Params(dense_config);
+        let mut named_vectors: HashMap<String, VectorParams> = HashMap::new();
+
+        // Dense vector: 768-dim, cosine similarity
+        named_vectors.insert(
+            "dense".to_string(),
+            VectorParamsBuilder::new(self.dense_vector_size, Distance::Cosine).build(),
+        );
+
+        let vectors_config = VectorsConfig::Map(named_vectors);
+
+        // Sparse vectors configuration
+        let sparse_config = SparseVectorParams {
+            index: Some(SparseIndexConfig {
+                full_scan_threshold: Some(10000),
+                on_disk: Some(false),
+            }),
+        };
+
+        let mut sparse_vectors_config: HashMap<String, SparseVectorParams> = HashMap::new();
+        sparse_vectors_config.insert("sparse".to_string(), sparse_config);
 
         let create_request = CreateCollectionBuilder::new(&self.collection_name)
             .vectors_config(vectors_config)
+            .sparse_vectors_config(sparse_vectors_config)
             .build();
 
         self.client
@@ -82,7 +101,7 @@ impl QdrantWrapper {
             .await
             .map_err(|e| AppError::Qdrant(format!("Failed to create collection: {}", e)))?;
 
-        tracing::info!(collection = %self.collection_name, "Collection created successfully (dense only for now)");
+        tracing::info!(collection = %self.collection_name, "Collection created successfully with named vectors (dense + sparse)");
 
         Ok(())
     }
@@ -108,20 +127,40 @@ impl QdrantWrapper {
                     payload.insert("metadata".to_string(), serde_json::to_string(&metadata).unwrap_or_default().into());
                 }
 
-                // Use UNNAMED vector (simpler, matches VectorsConfig::Params)
-                // Fase 2.2: Migrate to named vectors when implementing true sparse support
-                let vector = chunk.dense_embedding;
+                // Named vectors: {"dense": Vec<f32>, "sparse": SparseVector}
+                use qdrant_client::qdrant::{NamedVectors, Vectors};
 
-                // Sparse vectors disabled (Fase 2.2): Will use named vectors {"dense": Vec<f32>, "sparse": SparseVector}
-                // Current fallback: hybrid_search.rs uses dense + BM25 via tantivy for sparse-like behavior
-                // let mut named_vectors: HashMap<String, QdrantVector> = HashMap::new();
-                // named_vectors.insert("dense".to_string(), chunk.dense_embedding.into());
+                let mut named_vectors_map: HashMap<String, QdrantVector> = HashMap::new();
 
-                PointStruct::new(
-                    chunk.id.clone(),
-                    vector,  // Unnamed vector
-                    payload,
-                )
+                // Dense vector (always present)
+                named_vectors_map.insert("dense".to_string(), chunk.dense_embedding.into());
+
+                let named_vectors = NamedVectors {
+                    vectors: named_vectors_map,
+                };
+
+                let vectors = Vectors {
+                    vectors_options: Some(qdrant_client::qdrant::vectors::VectorsOptions::Vectors(named_vectors)),
+                };
+
+                // Sparse vector (optional, added separately via update API if present)
+                // Qdrant client API for sparse vectors in PointStruct is complex,
+                // so we upsert dense first, then update with sparse if available
+                let mut point = PointStruct::new(chunk.id.clone(), vectors, payload);
+
+                // Store sparse vector info in payload for later update
+                if let Some(sparse) = chunk.sparse_vector {
+                    let sparse_json = serde_json::json!({
+                        "indices": sparse.indices,
+                        "values": sparse.values,
+                    });
+                    point.payload.insert(
+                        "_sparse_pending".to_string(),
+                        serde_json::to_string(&sparse_json).unwrap_or_default().into(),
+                    );
+                }
+
+                point
             })
             .collect();
 
@@ -159,8 +198,7 @@ impl QdrantWrapper {
             query_embedding,
             top_k as u64,
         )
-        // Note: Using unnamed vector (default), not named "dense"
-        // .vector_name("dense")  // Commented out - using default unnamed vector
+        .vector_name("dense")  // Named vector for hybrid collections
         .with_payload(true)
         .filter(filter.unwrap_or_default());
 

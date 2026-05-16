@@ -73,6 +73,14 @@ pub struct Config {
     pub google_api_key: Option<String>,
     pub openai_api_key: Option<String>,
     pub deepseek_api_key: Option<String>,
+    pub qwen_api_key: Option<String>,
+    pub moonshot_api_key: Option<String>,
+    pub zhipu_api_key: Option<String>,
+    pub mistral_api_key: Option<String>,
+    pub groq_api_key: Option<String>,
+    pub openrouter_api_key: Option<String>,
+    pub together_api_key: Option<String>,
+    pub fireworks_api_key: Option<String>,
 
     // === Budget guard ===
     /// Daily cost budget in EUR (0.00 = disabled)
@@ -199,6 +207,38 @@ impl Config {
                 .filter(|s| !s.is_empty()),
 
             deepseek_api_key: env::var("DEEPSEEK_API_KEY")
+                .ok()
+                .filter(|s| !s.is_empty()),
+
+            qwen_api_key: env::var("QWEN_API_KEY")
+                .ok()
+                .filter(|s| !s.is_empty()),
+
+            moonshot_api_key: env::var("MOONSHOT_API_KEY")
+                .ok()
+                .filter(|s| !s.is_empty()),
+
+            zhipu_api_key: env::var("ZHIPU_API_KEY")
+                .ok()
+                .filter(|s| !s.is_empty()),
+
+            mistral_api_key: env::var("MISTRAL_API_KEY")
+                .ok()
+                .filter(|s| !s.is_empty()),
+
+            groq_api_key: env::var("GROQ_API_KEY")
+                .ok()
+                .filter(|s| !s.is_empty()),
+
+            openrouter_api_key: env::var("OPENROUTER_API_KEY")
+                .ok()
+                .filter(|s| !s.is_empty()),
+
+            together_api_key: env::var("TOGETHER_API_KEY")
+                .ok()
+                .filter(|s| !s.is_empty()),
+
+            fireworks_api_key: env::var("FIREWORKS_API_KEY")
                 .ok()
                 .filter(|s| !s.is_empty()),
 

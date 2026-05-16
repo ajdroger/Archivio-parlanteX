@@ -5,7 +5,22 @@ use std::sync::Arc;
 
 use crate::config::Config;
 use crate::errors::{AppError, Result};
-use super::{LlmProvider, ollama::OllamaProvider};
+use super::{
+    LlmProvider,
+    ollama::OllamaProvider,
+    anthropic::AnthropicProvider,
+    openai::OpenAIProvider,
+    google::GoogleProvider,
+    deepseek::DeepSeekProvider,
+    qwen::QwenProvider,
+    moonshot::MoonshotProvider,
+    zhipu::ZhipuProvider,
+    mistral::MistralProvider,
+    groq::GroqProvider,
+    openrouter::OpenRouterProvider,
+    together::TogetherProvider,
+    fireworks::FireworksProvider,
+};
 
 /// Registry of available LLM providers
 ///
@@ -31,12 +46,80 @@ impl LlmRegistry {
         ));
         providers.insert("ollama".to_string(), ollama);
 
-        // Cloud providers (Fase 3+): Register if API keys present
-        // Anthropic, Google, OpenAI, DeepSeek, Qwen, Moonshot, Zhipu, Mistral, Groq, etc.
-        // Implementation deferred until provider trait implementations are complete
-        // if let Some(key) = &config.anthropic_api_key {
-        //     providers.insert("anthropic".to_string(), Arc::new(AnthropicProvider::new(key.clone())));
-        // }
+        // Cloud providers: Register if API keys present
+        let max_concurrent = config.max_concurrent_llm_calls;
+
+        if let Some(key) = &config.anthropic_api_key {
+            if !key.is_empty() {
+                providers.insert("anthropic".to_string(), Arc::new(AnthropicProvider::new(key.clone(), max_concurrent, None)));
+            }
+        }
+
+        if let Some(key) = &config.openai_api_key {
+            if !key.is_empty() {
+                providers.insert("openai".to_string(), Arc::new(OpenAIProvider::new(key.clone(), max_concurrent, None)));
+            }
+        }
+
+        if let Some(key) = &config.google_api_key {
+            if !key.is_empty() {
+                providers.insert("google".to_string(), Arc::new(GoogleProvider::new(key.clone(), max_concurrent, None)));
+            }
+        }
+
+        if let Some(key) = &config.deepseek_api_key {
+            if !key.is_empty() {
+                providers.insert("deepseek".to_string(), Arc::new(DeepSeekProvider::new(key.clone(), max_concurrent, None)));
+            }
+        }
+
+        if let Some(key) = &config.qwen_api_key {
+            if !key.is_empty() {
+                providers.insert("qwen".to_string(), Arc::new(QwenProvider::new(key.clone(), max_concurrent, None)));
+            }
+        }
+
+        if let Some(key) = &config.moonshot_api_key {
+            if !key.is_empty() {
+                providers.insert("moonshot".to_string(), Arc::new(MoonshotProvider::new(key.clone(), max_concurrent, None)));
+            }
+        }
+
+        if let Some(key) = &config.zhipu_api_key {
+            if !key.is_empty() {
+                providers.insert("zhipu".to_string(), Arc::new(ZhipuProvider::new(key.clone(), max_concurrent, None)));
+            }
+        }
+
+        if let Some(key) = &config.mistral_api_key {
+            if !key.is_empty() {
+                providers.insert("mistral".to_string(), Arc::new(MistralProvider::new(key.clone(), max_concurrent, None)));
+            }
+        }
+
+        if let Some(key) = &config.groq_api_key {
+            if !key.is_empty() {
+                providers.insert("groq".to_string(), Arc::new(GroqProvider::new(key.clone(), max_concurrent, None)));
+            }
+        }
+
+        if let Some(key) = &config.openrouter_api_key {
+            if !key.is_empty() {
+                providers.insert("openrouter".to_string(), Arc::new(OpenRouterProvider::new(key.clone(), max_concurrent, None)));
+            }
+        }
+
+        if let Some(key) = &config.together_api_key {
+            if !key.is_empty() {
+                providers.insert("together".to_string(), Arc::new(TogetherProvider::new(key.clone(), max_concurrent, None)));
+            }
+        }
+
+        if let Some(key) = &config.fireworks_api_key {
+            if !key.is_empty() {
+                providers.insert("fireworks".to_string(), Arc::new(FireworksProvider::new(key.clone(), max_concurrent, None)));
+            }
+        }
 
         tracing::info!(
             provider_count = providers.len(),
@@ -113,6 +196,15 @@ mod tests {
             google_api_key: None,
             openai_api_key: None,
             deepseek_api_key: None,
+            qwen_api_key: None,
+            moonshot_api_key: None,
+            zhipu_api_key: None,
+            mistral_api_key: None,
+            groq_api_key: None,
+            openrouter_api_key: None,
+            together_api_key: None,
+            fireworks_api_key: None,
+            redis_url: "redis://localhost:6379".to_string(),
             daily_cost_budget_eur: 0.0,
             app_env: "dev".to_string(),
             cors_origins: vec!["http://localhost:3000".to_string()],

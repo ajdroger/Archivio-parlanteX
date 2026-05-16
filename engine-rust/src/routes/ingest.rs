@@ -111,10 +111,8 @@ pub async fn handle_ingest(
     // Step 6: Store in Qdrant
     let chunks_indexed = store_in_qdrant(&state.config, &req, chunks, embeddings, sparse_vectors).await?;
 
-    // Step 7: Extract knowledge graph (Fase 2.1 - Knowledge Graph Integration)
-    // Future: Call graph extraction service to identify entities (PARTIES, DATES, AMOUNTS, CLAUSES, etc.)
-    // and relationships, then store in ap_graph_nodes and ap_graph_edges
-    let entities_extracted = 0;
+    // Step 7: Extract knowledge graph
+    let entities_extracted = extract_and_store_knowledge_graph(&state, &req, &full_text).await?;
 
     let processing_ms = start.elapsed().as_millis() as u64;
 
@@ -283,6 +281,127 @@ async fn store_in_qdrant(
     tracing::info!(chunks_stored = count, "Chunks stored in Qdrant");
 
     Ok(count)
+}
+
+/// Extract and store knowledge graph (entities + relationships)
+async fn extract_and_store_knowledge_graph(
+    state: &AppState,
+    req: &IngestRequest,
+    full_text: &str,
+) -> Result<usize> {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize)]
+    struct KgExtractionRequest {
+        text: String,
+        doc_id: String,
+    }
+
+    #[derive(Deserialize)]
+    struct KgNode {
+        id: String,
+        entity_type: String,
+        name: String,
+        properties: serde_json::Value,
+    }
+
+    #[derive(Deserialize)]
+    struct KgEdge {
+        source_id: String,
+        target_id: String,
+        relation_type: String,
+        properties: serde_json::Value,
+    }
+
+    #[derive(Deserialize)]
+    struct KgExtractionResponse {
+        nodes: Vec<KgNode>,
+        edges: Vec<KgEdge>,
+    }
+
+    tracing::debug!(doc_id = %req.doc_id, "Extracting knowledge graph");
+
+    // Call Python worker for KG extraction
+    let request_body = KgExtractionRequest {
+        text: full_text.to_string(),
+        doc_id: req.doc_id.clone(),
+    };
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("{}/extract_kg", state.config.python_worker_url))
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| AppError::InternalError(format!("KG extraction request failed: {}", e)))?;
+
+    if !response.status().is_success() {
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(AppError::InternalError(format!("KG extraction failed: {}", error_text)));
+    }
+
+    let kg_response: KgExtractionResponse = response
+        .json()
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to parse KG response: {}", e)))?;
+
+    // Store nodes in MySQL
+    let mut entities_count = 0;
+    for node in &kg_response.nodes {
+        let properties_json = serde_json::to_string(&node.properties)
+            .unwrap_or_else(|_| "{}".to_string());
+
+        sqlx::query(
+            r#"
+            INSERT INTO ap_graph_nodes (id, kb_id, doc_id, entity_type, name, properties)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                entity_type = VALUES(entity_type),
+                name = VALUES(name),
+                properties = VALUES(properties)
+            "#
+        )
+        .bind(&node.id)
+        .bind(&req.kb_id)
+        .bind(&req.doc_id)
+        .bind(&node.entity_type)
+        .bind(&node.name)
+        .bind(&properties_json)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to store graph node: {}", e)))?;
+
+        entities_count += 1;
+    }
+
+    // Store edges in MySQL
+    for edge in &kg_response.edges {
+        let properties_json = serde_json::to_string(&edge.properties)
+            .unwrap_or_else(|_| "{}".to_string());
+
+        sqlx::query(
+            r#"
+            INSERT INTO ap_graph_edges (source_id, target_id, relation_type, properties)
+            VALUES (?, ?, ?, ?)
+            "#
+        )
+        .bind(&edge.source_id)
+        .bind(&edge.target_id)
+        .bind(&edge.relation_type)
+        .bind(&properties_json)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to store graph edge: {}", e)))?;
+    }
+
+    tracing::info!(
+        doc_id = %req.doc_id,
+        entities = entities_count,
+        relations = kg_response.edges.len(),
+        "Knowledge graph extracted and stored"
+    );
+
+    Ok(entities_count)
 }
 
 #[cfg(test)]

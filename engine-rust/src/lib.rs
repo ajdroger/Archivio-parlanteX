@@ -10,5 +10,6 @@ pub mod models;
 pub mod providers;
 pub mod rag;
 pub mod routes;
+pub mod sparse_vectors;
 pub mod utils;
 pub mod websocket;

@@ -7,6 +7,20 @@ pub mod types;
 pub mod ollama;
 pub mod registry;
 
+// Cloud providers
+pub mod anthropic;
+pub mod openai;
+pub mod google;
+pub mod deepseek;
+pub mod qwen;
+pub mod moonshot;
+pub mod zhipu;
+pub mod mistral;
+pub mod groq;
+pub mod openrouter;
+pub mod together;
+pub mod fireworks;
+
 use async_trait::async_trait;
 use crate::errors::Result;
 pub use types::*;

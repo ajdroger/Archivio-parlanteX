@@ -89,8 +89,21 @@ pub async fn handle_websocket(
         "WebSocket connection requested"
     );
 
-    // TODO: Add KB access control check here
-    // Verify user has at least READ permission on kb_id
+    // KB access control check - verify user has access to KB
+    if let Err(e) = check_kb_access(&state, query.user_id, &query.kb_id).await {
+        tracing::warn!(
+            user_id = query.user_id,
+            kb_id = %query.kb_id,
+            error = %e,
+            "KB access denied for WebSocket connection"
+        );
+
+        return (
+            StatusCode::FORBIDDEN,
+            format!("Access denied to KB: {}", e),
+        )
+            .into_response();
+    }
 
     ws.on_upgrade(move |socket| handle_socket(socket, query, state))
 }
@@ -428,4 +441,65 @@ async fn delete_annotation(state: &AppState, annotation_id: &str) -> Result<()> 
     .map_err(|e| AppError::InternalError(format!("Failed to delete annotation: {}", e)))?;
 
     Ok(())
+}
+
+/// Check if user has access to KB
+async fn check_kb_access(state: &AppState, user_id: u64, kb_id: &str) -> Result<()> {
+    // Check 1: Direct permissions (ap_kb_permissions)
+    let direct_permission = sqlx::query(
+        r#"
+        SELECT permission_type
+        FROM ap_kb_permissions
+        WHERE kb_id = ? AND user_id = ?
+        "#
+    )
+    .bind(kb_id)
+    .bind(user_id as i64)
+    .fetch_optional(&state.db_pool)
+    .await
+    .map_err(|e| AppError::InternalError(format!("Failed to check direct permissions: {}", e)))?;
+
+    if direct_permission.is_some() {
+        return Ok(()); // User has direct permission
+    }
+
+    // Check 2: Workspace permissions (ap_workspace_members + ap_knowledge_bases)
+    let workspace_permission = sqlx::query(
+        r#"
+        SELECT wm.role
+        FROM ap_knowledge_bases kb
+        INNER JOIN ap_workspace_members wm ON wm.workspace_id = kb.workspace_id
+        WHERE kb.kb_id = ? AND wm.user_id = ?
+        "#
+    )
+    .bind(kb_id)
+    .bind(user_id as i64)
+    .fetch_optional(&state.db_pool)
+    .await
+    .map_err(|e| AppError::InternalError(format!("Failed to check workspace permissions: {}", e)))?;
+
+    if workspace_permission.is_some() {
+        return Ok(()); // User is workspace member
+    }
+
+    // Check 3: Ownership
+    let is_owner = sqlx::query(
+        r#"
+        SELECT 1
+        FROM ap_knowledge_bases
+        WHERE kb_id = ? AND owner_user_id = ?
+        "#
+    )
+    .bind(kb_id)
+    .bind(user_id as i64)
+    .fetch_optional(&state.db_pool)
+    .await
+    .map_err(|e| AppError::InternalError(format!("Failed to check ownership: {}", e)))?;
+
+    if is_owner.is_some() {
+        return Ok(()); // User is owner
+    }
+
+    // No access found
+    Err(AppError::Forbidden("You do not have access to this knowledge base".to_string()))
 }
