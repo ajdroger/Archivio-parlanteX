@@ -1,0 +1,89 @@
+[package]
+name = "archivio-parlante-rust-engine"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+
+[[bin]]
+name = "archivio-parlante-rust-engine"
+path = "src/main.rs"
+
+[lib]
+name = "archivio_parlante_rust_engine"
+path = "src/lib.rs"
+
+[dependencies]
+# Web framework
+axum = { version = "0.7", features = ["ws"] }  # ws for WebSocket support
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "cors", "compression-gzip"] }
+
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
+futures = "0.3"
+async-trait = "0.1"
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Qdrant client (compatible with server v1.18+)
+# Using gRPC (default, HTTP/2) via port 6334
+# Client and server versions must be within ±1 minor version
+qdrant-client = "1.18"
+
+# UUID
+uuid = { version = "1.11", features = ["v4", "serde"] }
+
+# Date/Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Environment
+dotenvy = "0.15"
+
+# Tokenization
+tiktoken-rs = "0.5"
+
+# Regex
+regex = "1"
+
+# Concurrent data structures
+dashmap = "6"
+once_cell = "1.19"
+
+# BM25 sparse vectors
+tantivy = "0.22"
+
+# Observability
+prometheus = "0.13"
+lazy_static = "1.4"
+
+# OpenAPI documentation
+utoipa = { version = "5", features = ["axum_extras", "chrono"] }
+utoipa-swagger-ui = { version = "8", features = ["axum"] }
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio", "mysql", "chrono"] }
+
+# Cache (Redis for permission caching)
+redis = { version = "0.26", features = ["tokio-comp", "connection-manager"] }
+
+# Cryptography (SHA-256 for cache keys)
+sha2 = "0.10"
+
+[profile.release]
+opt-level = 2
+lto = false
+codegen-units = 16
+strip = true

@@ -1,0 +1,1 @@
+{"dashboard":{"title":"Archivio Parlante Overview","panels":[{"id":1,"title":"Request Rate","type":"graph","targets":[{"expr":"rate(http_requests_total[5m])"}]},{"id":2,"title":"Error Rate","type":"graph","targets":[{"expr":"rate(http_requests_total{status=~\"5..\"}[5m])"}]}]},"overwrite":true}

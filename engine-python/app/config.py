@@ -1,0 +1,79 @@
+"""
+Configuration for Python AI Worker
+
+Uses pydantic-settings for environment variable parsing.
+"""
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
+from typing import List
+
+
+class Settings(BaseSettings):
+    """Application settings"""
+
+    # App
+    app_env: str = "dev"
+    app_debug: bool = True
+
+    # CORS
+    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS_ORIGINS from comma-separated string or list"""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",")]
+        return v
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_production(cls, v, info):
+        """Validate CORS origins in production"""
+        app_env = info.data.get("app_env", "dev")
+        if app_env == "production" and "*" in v:
+            raise ValueError("CORS allow-all (*) forbidden in production mode")
+        return v
+
+    # API
+    rust_engine_url: str = "http://rust-engine:8090"
+    rust_engine_internal_token: str = ""
+
+    # Shared storage
+    shared_uploads_path: str = "/shared/uploads"
+    max_upload_size_mb: int = 200
+
+    # OCR
+    tesseract_lang: str = "ita+eng"
+    ocr_dpi: int = 300
+
+    # Parsing
+    pdf_max_pages: int = 500
+    chunk_size: int = 512
+    chunk_overlap: int = 50
+
+    # Reranker (Fase 2.2)
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    reranker_device: str = "auto"  # auto | cuda | cpu
+    reranker_top_k: int = 5
+
+    # Contextual Retrieval (Fase 2.3)
+    ollama_url: str = "http://ollama:11434"
+    contextualization_model: str = "qwen2.5:3b-instruct-q4_K_M"  # Small fast model
+    contextualization_batch_size: int = 5  # Parallel context generation
+    contextualization_max_doc_length: int = 8000  # Max chars for document excerpt
+
+    # Knowledge Graph (Fase 2.4)
+    kg_spacy_model: str = "it_core_news_lg"  # Italian NER model
+    kg_max_text_length: int = 50000  # Max chars for KG extraction
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+    )
+
+
+# Global settings instance
+settings = Settings()

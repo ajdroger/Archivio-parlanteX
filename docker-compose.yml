@@ -1,0 +1,209 @@
+# ============================================================================
+# Archivio Parlante — Docker Compose Orchestration
+# ============================================================================
+# 7 microservizi: PHP Gateway + Rust Core + Python Worker + Qdrant + Ollama + MySQL + Redis
+# Network: archivio_net (internal bridge)
+# Volumes: mysql_data, qdrant_data, ollama_models (persistent)
+
+services:
+  # ==========================================================================
+  # PHP Gateway — API Gateway & Auth (Slim 4)
+  # ==========================================================================
+  php-gateway:
+    build:
+      context: ./php-gateway
+      dockerfile: Dockerfile
+    container_name: archivio-php-gateway
+    ports:
+      - "9080:80"
+    volumes:
+      - ./php-gateway:/var/www/html
+      - ./shared:/shared
+    environment:
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_DB=${MYSQL_DB}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - RUST_ENGINE_URL=${RUST_ENGINE_URL}
+      - RUST_ENGINE_INTERNAL_TOKEN=${RUST_ENGINE_INTERNAL_TOKEN}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=${REDIS_URL}
+    networks:
+      - archivio_net
+    depends_on:
+      - mysql
+      - redis
+      - rust-engine
+    restart: unless-stopped
+    # Apache rewrite + PHP extensions install via custom Dockerfile in Fase 3
+
+  # ==========================================================================
+  # Rust Core Engine — Orchestratore RAG (Axum + Tokio)
+  # ==========================================================================
+  rust-engine:
+    build:
+      context: ./engine-rust
+      dockerfile: Dockerfile
+    container_name: archivio-rust-engine
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./shared:/shared
+    environment:
+      - RUST_LOG=${RUST_LOG}
+      - OLLAMA_URL=${OLLAMA_URL}
+      - OLLAMA_MODEL_CHAT=${OLLAMA_MODEL_CHAT}
+      - OLLAMA_MODEL_CHAT_SMALL=${OLLAMA_MODEL_CHAT_SMALL}
+      - OLLAMA_MODEL_EMBED=${OLLAMA_MODEL_EMBED}
+      - QDRANT_URL=${QDRANT_URL}
+      - PYTHON_WORKER_URL=http://host.docker.internal:8091
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_DB=${MYSQL_DB}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - RUST_ENGINE_INTERNAL_TOKEN=${RUST_ENGINE_INTERNAL_TOKEN}
+      # Provider cloud (opt-in)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DAILY_COST_BUDGET_EUR=${DAILY_COST_BUDGET_EUR}
+    networks:
+      - archivio_net
+    depends_on:
+      - qdrant
+      - ollama
+      - mysql
+      # python-worker runs natively outside Docker
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Python AI Worker — PDF Parser, Reranker, KG (FastAPI)
+  # ==========================================================================
+  # NOTE: Commented out due to Docker/WSL2 build issues with ML dependencies.
+  # Run natively on Windows instead (CUDA already configured):
+  #   cd engine-python && .\venv\Scripts\Activate.ps1 && uvicorn app.main:app --host 0.0.0.0 --port 8091 --reload
+  #
+  python-worker:
+    build:
+      context: ./engine-python
+      dockerfile: Dockerfile
+    container_name: archivio-python-worker
+    ports:
+      - "8091:8091"
+    volumes:
+      - ./shared:/shared
+    environment:
+      - PYTHON_LOG_LEVEL=${PYTHON_LOG_LEVEL}
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - MYSQL_HOST=host.docker.internal
+      - MYSQL_PORT=3307
+      - MYSQL_DB=${MYSQL_DB}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    networks:
+      - archivio_net
+    depends_on:
+      - ollama
+      - mysql
+    restart: unless-stopped
+    # We remove the GPU section since we're using minimal image for now. If needed, we can uncomment it later.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ==========================================================================
+  # Qdrant — Vector Database (Dense + Sparse Hybrid)
+  # ==========================================================================
+  # UPGRADED: v1.12.4 → latest (to match qdrant-client 1.18)
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: archivio-qdrant
+    ports:
+      - "6335:6333"  # REST API
+      - "6336:6334"  # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - archivio_net
+    restart: unless-stopped
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+
+  # ==========================================================================
+  # Ollama — LLM Locale (qwen2.5, nomic-embed-text)
+  # ==========================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: archivio-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - archivio_net
+    restart: unless-stopped
+    # GPU support (ENABLED for LLM inference acceleration)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # ==========================================================================
+  # MySQL 8 — Database Relazionale (archivio_parlante_x)
+  # ==========================================================================
+  mysql:
+    image: mysql:8.0
+    container_name: archivio-mysql
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    environment:
+      - MYSQL_DATABASE=${MYSQL_DB}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes  # Dev only, REMOVE IN PRODUCTION
+    networks:
+      - archivio_net
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  # ==========================================================================
+  # Redis 7 — Cache & Rate Limiting
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: archivio-redis
+    ports:
+      - "6380:6379"
+    networks:
+      - archivio_net
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  archivio_net:
+    driver: bridge
+    name: archivio_net
+
+# ============================================================================
+# Volumes (Persistenza Dati)
+# ============================================================================
+volumes:
+  mysql_data:
+    name: archivio_mysql_data
+  qdrant_data:
+    name: archivio_qdrant_data
+  ollama_models:
+    name: archivio_ollama_models
