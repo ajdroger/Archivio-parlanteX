@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::Semaphore;
 
 use crate::errors::{AppError, Result};
-use super::{LlmProvider, ChatRequest, ChatResponse, StreamEvent, ModelInfo, Usage, FinishReason, Message};
+use super::{LlmProvider, ChatRequest, ChatResponse, StreamEvent, ModelInfo, Usage, FinishReason};
 
 /// Ollama provider (local, zero-cost)
 pub struct OllamaProvider {

@@ -8,7 +8,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::collections::HashMap;
 
 use crate::clients::qdrant::QdrantWrapper;
 use crate::errors::{AppError, Result};
@@ -414,7 +413,7 @@ async fn reindex_kb_task(
 
     // Step 2: Initialize Qdrant client
     let collection_name = format!("ap_kb_{}", kb_id);
-    let qdrant = crate::clients::qdrant::QdrantWrapper::new(
+    let _qdrant = crate::clients::qdrant::QdrantWrapper::new(
         state.config.qdrant_url.clone(),
         collection_name,
         768,

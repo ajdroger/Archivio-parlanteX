@@ -3,7 +3,7 @@
 /// Converts text into sparse vector representation for hybrid search.
 
 use std::collections::HashMap;
-use tantivy::tokenizer::{SimpleTokenizer, TextAnalyzer, Token, TokenStream};
+use tantivy::tokenizer::{SimpleTokenizer, TextAnalyzer, TokenStream};
 
 use crate::clients::qdrant::SparseVector;
 

@@ -1,6 +1,6 @@
 /// Document ingestion route handler
 
-use axum::{extract::State, response::IntoResponse, Json};
+use axum::{extract::State, Json};
 use std::sync::Arc;
 use std::time::Instant;
 

@@ -5,11 +5,9 @@ use qdrant_client::{
     qdrant::{
         CreateCollectionBuilder, Distance,
         PointStruct, ScoredPoint, SearchPointsBuilder, VectorParamsBuilder,
-        SearchParamsBuilder, SparseIndices,
-        NamedVectors, Vector as QdrantVector, Value, Condition, Filter,
+        Vector as QdrantVector, Value, Condition, Filter,
         UpsertPointsBuilder, DeletePointsBuilder,
-        VectorsConfig, VectorParamsMap, VectorParams,
-        SparseVectorParams, SparseIndexConfig,
+        VectorsConfig, VectorParamsMap,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -233,7 +231,7 @@ impl QdrantWrapper {
         filter: Option<Filter>,
     ) -> Result<Vec<ScoredChunk>> {
         // In qdrant-client 1.17, SparseVector needs to be wrapped in Vector enum
-        let sparse_vec = qdrant_client::qdrant::SparseVector {
+        let _sparse_vec = qdrant_client::qdrant::SparseVector {
             indices: query_sparse.indices,
             values: query_sparse.values,
         };

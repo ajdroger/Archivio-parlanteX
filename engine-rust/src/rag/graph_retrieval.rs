@@ -6,7 +6,7 @@
 // Expands query entities 2-hop via knowledge graph to find related chunks,
 // then merges with traditional hybrid search using Reciprocal Rank Fusion.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 use sqlx::{MySqlPool, Row};
 use serde::{Deserialize, Serialize};
@@ -146,7 +146,7 @@ impl GraphRetriever {
 
         // Build query to find chunks mentioning these entities
         // Uses LIKE for fuzzy matching (entity mentions might not be exact)
-        let placeholders: Vec<String> = entity_labels
+        let _placeholders: Vec<String> = entity_labels
             .iter()
             .map(|_| "?".to_string())
             .collect();
@@ -303,8 +303,6 @@ impl GraphRetriever {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[tokio::test]
     async fn test_graph_retriever_creation() {
         // Test that GraphRetriever can be created (requires DB connection in real tests)
