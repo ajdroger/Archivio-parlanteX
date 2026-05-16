@@ -19,7 +19,7 @@ use crate::routes::ingest::AppState;
 /// 3. Create MultiContractComparator
 /// 4. Run comparison
 /// 5. Generate Markdown result
-/// 6. Optionally save to database (TODO: Phase 1.6)
+/// 6. Optionally save to database (✓ implemented)
 /// 7. Return response
 ///
 /// # Errors
@@ -63,11 +63,29 @@ pub async fn handle_compare_contracts(
     let markdown_result = comparison_result.to_markdown(&doc_names);
 
     // Step 6: Optionally save to database
-    // TODO: Phase 1.6 - save to ap_contract_analyses table
     let analysis_id = if req.save_analysis {
-        // Placeholder for future implementation
-        tracing::warn!("save_analysis=true but persistence not yet implemented (Phase 1.6)");
-        None
+        let analysis_uuid = uuid::Uuid::new_v4().to_string();
+        let result_json = serde_json::to_value(&comparison_result)
+            .unwrap_or(serde_json::Value::Null);
+
+        sqlx::query(
+            "INSERT INTO ap_contract_analyses (id, kb_id, analysis_type, doc_ids, result_json, processing_ms, created_at)
+             VALUES (?, ?, 'multi_contract_comparison', ?, ?, ?, NOW())"
+        )
+        .bind(&analysis_uuid)
+        .bind(&req.kb_id)
+        .bind(req.doc_ids.join(","))
+        .bind(result_json)
+        .bind(total_processing_ms as i32)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to save analysis to database");
+            AppError::InternalError("Failed to save analysis".to_string())
+        })?;
+
+        tracing::info!(analysis_id = %analysis_uuid, "Comparison analysis saved to database");
+        Some(analysis_uuid)
     } else {
         None
     };

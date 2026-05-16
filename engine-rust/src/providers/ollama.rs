@@ -16,6 +16,8 @@ pub struct OllamaProvider {
     client: Client,
     /// Rate limiter (max concurrent requests)
     semaphore: Arc<Semaphore>,
+    /// Chat model name (from config)
+    chat_model: String,
     /// Embedding model name (from config)
     embed_model: String,
 }
@@ -26,12 +28,14 @@ impl OllamaProvider {
     /// # Arguments
     /// * `base_url` - Ollama API base URL (e.g., http://ollama:11434)
     /// * `max_concurrent` - Max concurrent requests (from config)
+    /// * `chat_model` - Chat model name (e.g., qwen2.5:7b-instruct-q4_K_M)
     /// * `embed_model` - Embedding model name (e.g., nomic-embed-text)
-    pub fn new(base_url: String, max_concurrent: usize, embed_model: String) -> Self {
+    pub fn new(base_url: String, max_concurrent: usize, chat_model: String, embed_model: String) -> Self {
         Self {
             base_url: base_url.trim_end_matches('/').to_string(),
             client: Client::new(),
             semaphore: Arc::new(Semaphore::new(max_concurrent)),
+            chat_model,
             embed_model,
         }
     }
@@ -86,6 +90,24 @@ impl LlmProvider for OllamaProvider {
     async fn is_available(&self) -> bool {
         let url = self.api_url("tags");
         self.client.get(&url).send().await.is_ok()
+    }
+
+    async fn generate(&self, prompt: &str, max_tokens: usize, temperature: f32) -> Result<String> {
+        use super::types::{Message, Role};
+
+        let request = ChatRequest {
+            model: self.chat_model.clone(), // Inject Ollama chat model
+            messages: vec![Message {
+                role: Role::User,
+                content: prompt.to_string(),
+            }],
+            response_format: None,
+            temperature: Some(temperature),
+            max_tokens: Some(max_tokens as u32),
+            stop: None,
+        };
+        let response = self.chat(request).await?;
+        Ok(response.content)
     }
 
     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse> {

@@ -26,15 +26,17 @@ impl LlmRegistry {
         let ollama = Arc::new(OllamaProvider::new(
             config.ollama_url.clone(),
             config.max_concurrent_llm_calls,
+            config.ollama_model_chat.clone(),
             config.ollama_model_embed.clone(),
         ));
         providers.insert("ollama".to_string(), ollama);
 
-        // TODO: Add cloud providers if API keys present
+        // Cloud providers (Fase 3+): Register if API keys present
+        // Anthropic, Google, OpenAI, DeepSeek, Qwen, Moonshot, Zhipu, Mistral, Groq, etc.
+        // Implementation deferred until provider trait implementations are complete
         // if let Some(key) = &config.anthropic_api_key {
         //     providers.insert("anthropic".to_string(), Arc::new(AnthropicProvider::new(key.clone())));
         // }
-        // ... repeat for other providers
 
         tracing::info!(
             provider_count = providers.len(),

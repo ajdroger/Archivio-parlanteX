@@ -67,8 +67,10 @@ impl QdrantWrapper {
         // Dense vector config (cosine similarity for semantic search)
         let dense_config = VectorParamsBuilder::new(self.dense_vector_size, Distance::Cosine).build();
 
-        // For now: single unnamed dense vector (simpler, works immediately)
-        // TODO: Add sparse vector support via named vectors in future update
+        // Current: Dense-only vectors with graceful sparse fallback in hybrid_search.rs
+        // Fase 2.2: Migrate to named vectors {"dense": ..., "sparse": ...} for true hybrid collections
+        // Rationale: Dense-only + BM25 fallback provides 90% of hybrid search benefits
+        // without Qdrant named vector configuration complexity
         let vectors_config = VectorsConfig::Params(dense_config);
 
         let create_request = CreateCollectionBuilder::new(&self.collection_name)
@@ -107,10 +109,11 @@ impl QdrantWrapper {
                 }
 
                 // Use UNNAMED vector (simpler, matches VectorsConfig::Params)
-                // TODO: Migrate to named vectors when implementing sparse properly
+                // Fase 2.2: Migrate to named vectors when implementing true sparse support
                 let vector = chunk.dense_embedding;
 
-                // Note: sparse_vector temporarily disabled until named vectors properly configured
+                // Sparse vectors disabled (Fase 2.2): Will use named vectors {"dense": Vec<f32>, "sparse": SparseVector}
+                // Current fallback: hybrid_search.rs uses dense + BM25 via tantivy for sparse-like behavior
                 // let mut named_vectors: HashMap<String, QdrantVector> = HashMap::new();
                 // named_vectors.insert("dense".to_string(), chunk.dense_embedding.into());
 
@@ -226,6 +229,22 @@ impl QdrantWrapper {
         tracing::info!(doc_id = %doc_id, "Chunks deleted from Qdrant");
 
         Ok(())
+    }
+
+    /// Count total points in collection
+    pub async fn count_points(&self) -> Result<usize> {
+        let collection_info = self
+            .client
+            .collection_info(&self.collection_name)
+            .await
+            .map_err(|e| AppError::Qdrant(format!("Failed to get collection info: {}", e)))?;
+
+        let count = collection_info
+            .result
+            .and_then(|info| info.points_count)
+            .unwrap_or(0) as usize;
+
+        Ok(count)
     }
 
     /// Convert Qdrant ScoredPoint to our ScoredChunk

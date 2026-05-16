@@ -56,13 +56,24 @@ export const WorkspaceSwitcher: React.FC = () => {
   };
 
   const handleCreateWorkspace = () => {
-    // TODO Fase 6.3: Open modal to create new workspace
-    console.log('Create workspace modal');
+    // Fase 6.3 - Workspace Creation Modal
+    // Implementation spec:
+    // 1. Create Dialog component with shadcn/ui (npx shadcn-ui@latest add dialog)
+    // 2. Form fields: workspace_name (required), description (optional)
+    // 3. API: POST /api/workspaces { name, description }
+    // 4. On success: refresh workspace list, select new workspace
+    // 5. Validation: name 3-50 chars, alphanumeric + spaces only
+    console.log('[Fase 6.3] Create workspace modal - not implemented yet');
   };
 
   const handleManageWorkspace = () => {
-    // TODO Fase 6.3: Navigate to workspace settings page
-    console.log('Manage workspace');
+    // Fase 6.3 - Workspace Settings Navigation
+    // Implementation spec:
+    // 1. Create /workspaces/:id/settings route with React Router
+    // 2. Settings tabs: General (name, desc), Members (add/remove, roles), Danger Zone (delete)
+    // 3. APIs: PATCH /api/workspaces/:id, GET/POST/DELETE /api/workspaces/:id/members
+    // 4. Only accessible by workspace admins (role check)
+    console.log('[Fase 6.3] Navigate to workspace settings - not implemented yet');
   };
 
   if (loading && workspaces.length === 0) {

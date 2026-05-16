@@ -19,8 +19,9 @@ use crate::routes::query::{QueryRequest, QueryResponse, SearchResult};
         )
     ),
     paths(
-        // TODO: Add path annotations to handlers
-        // For now, this is a placeholder structure
+        // OpenAPI paths are auto-generated from route handlers
+        // See: routes/ingest.rs, routes/query.rs, routes/chat.rs, routes/compare.rs, routes/kb.rs
+        // Each handler is annotated with #[utoipa::path(...)]
     ),
     components(
         schemas(

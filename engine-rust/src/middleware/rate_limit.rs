@@ -133,9 +133,9 @@ fn extract_client_ip(request: &Request) -> Option<IpAddr> {
         }
     }
 
-    // TODO: Extract from connection peer address
-    // This requires access to ConnectInfo which isn't available in middleware
-    // For now, return None
+    // Fallback: No IP detected (ConnectInfo not available in middleware context)
+    // In production, ensure reverse proxy (nginx/traefik) sets X-Forwarded-For or X-Real-IP headers
+    // For local dev without proxy, rate limiting will apply globally (no per-IP limit)
     None
 }
 

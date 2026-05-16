@@ -111,7 +111,9 @@ pub async fn handle_ingest(
     // Step 6: Store in Qdrant
     let chunks_indexed = store_in_qdrant(&state.config, &req, chunks, embeddings, sparse_vectors).await?;
 
-    // TODO: Step 7: Extract knowledge graph (Phase 1.4)
+    // Step 7: Extract knowledge graph (Fase 2.1 - Knowledge Graph Integration)
+    // Future: Call graph extraction service to identify entities (PARTIES, DATES, AMOUNTS, CLAUSES, etc.)
+    // and relationships, then store in ap_graph_nodes and ap_graph_edges
     let entities_extracted = 0;
 
     let processing_ms = start.elapsed().as_millis() as u64;

@@ -161,29 +161,35 @@ pub async fn handle_chat(
         ));
     }
 
-    // Step 3: Rerank with BGE cross-encoder
-    let texts: Vec<String> = candidates.iter().map(|c| c.text.clone()).collect();
-    let rerank_results = state
-        .python_worker
-        .rerank(req.query.clone(), texts, req.top_k)
-        .await?;
-
-    // Step 4: Build citations
-    let citations: Vec<Citation> = rerank_results
-        .iter()
-        .filter_map(|rr| {
-            candidates.get(rr.index).map(|candidate| Citation {
-                doc_id: candidate.doc_id.clone(),
-                chunk_index: candidate.chunk_index,
-                text_quote: candidate.text.clone(),
-                score: rr.score,
-            })
-        })
-        .collect();
+    // Step 3: Rerank with BGE cross-encoder (fallback to candidates if reranker unavailable)
+    let citations: Vec<Citation> = match rerank_candidates(&state, &req, &candidates).await {
+        Ok(citations) => {
+            tracing::debug!(citations_count = citations.len(), "Reranking completed successfully");
+            citations
+        }
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "Reranking failed (reranker may not be available), using RRF results directly"
+            );
+            // Fallback: use top_k candidates from hybrid search (already RRF-ranked)
+            candidates
+                .iter()
+                .take(req.top_k)
+                .map(|candidate| Citation {
+                    doc_id: candidate.doc_id.clone(),
+                    chunk_index: candidate.chunk_index,
+                    text_quote: candidate.text.clone(),
+                    score: candidate.score,
+                })
+                .collect()
+        }
+    };
 
     if citations.is_empty() {
-        return Err(AppError::InternalError(
-            "Reranking produced no results".to_string(),
+        tracing::info!("No citations available after reranking/fallback");
+        return Err(AppError::NotFound(
+            "No relevant information found in the knowledge base".to_string(),
         ));
     }
 
@@ -242,10 +248,38 @@ pub async fn handle_chat(
         citations,
         verification,
         processing_ms,
-        llm_provider: "ollama".to_string(), // TODO: Get from LLM provider
+        llm_provider: llm.name().to_string(),
         llm_model: state.config.ollama_model_chat.clone(),
         message_id,
     }))
+}
+
+/// Rerank candidates using BGE cross-encoder
+async fn rerank_candidates(
+    state: &AppState,
+    req: &ChatRequest,
+    candidates: &[crate::clients::qdrant::ScoredChunk],
+) -> Result<Vec<Citation>> {
+    let texts: Vec<String> = candidates.iter().map(|c| c.text.clone()).collect();
+
+    let rerank_results = state
+        .python_worker
+        .rerank(req.query.clone(), texts, req.top_k)
+        .await?;
+
+    let citations: Vec<Citation> = rerank_results
+        .iter()
+        .filter_map(|rr| {
+            candidates.get(rr.index).map(|candidate| Citation {
+                doc_id: candidate.doc_id.clone(),
+                chunk_index: candidate.chunk_index,
+                text_quote: candidate.text.clone(),
+                score: rr.score,
+            })
+        })
+        .collect();
+
+    Ok(citations)
 }
 
 /// Validate chat request

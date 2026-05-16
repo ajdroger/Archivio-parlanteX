@@ -50,7 +50,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("hallucination_detector_init_skipped", error=str(e))
 
-    # TODO Fase 2.3+: Initialize spaCy NER, contextual retrieval, etc.
+    # Fase 2.3 - Knowledge Graph & NER: Initialize spaCy Italian NER pipeline
+    # Future components:
+    # - spacy.load("it_core_news_lg") for entity extraction (PERSON, ORG, DATE, MONEY)
+    # - Custom NER for legal entities (CONTRATTO, CLAUSOLA, PENALE, GIURISDIZIONE)
+    # - Integration with Rust graph extraction service via /extract_entities endpoint
     yield
     logger.info("Python AI Worker shutting down...")
 
