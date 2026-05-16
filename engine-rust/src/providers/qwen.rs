@@ -22,7 +22,7 @@ impl QwenProvider {
         Self {
             api_key,
             client: Client::new(),
-            semaphore: Arc<Semaphore::new(max_concurrent)),
+            semaphore: Arc::new(Semaphore::new(max_concurrent)),
             default_model: default_model.unwrap_or_else(|| "qwen-max".to_string()),
         }
     }

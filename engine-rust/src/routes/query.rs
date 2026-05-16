@@ -264,6 +264,8 @@ mod tests {
             query: "contratto fornitura servizi".to_string(),
             kb_id: "kb_123".to_string(),
             top_k: 5,
+            retrieval_mode: "hybrid".to_string(),
+            graph_expand_depth: 2,
         };
 
         assert!(validate_request(&req).is_ok());
@@ -275,6 +277,8 @@ mod tests {
             query: "   ".to_string(),
             kb_id: "kb_123".to_string(),
             top_k: 5,
+            retrieval_mode: "hybrid".to_string(),
+            graph_expand_depth: 2,
         };
 
         let result = validate_request(&req);
@@ -293,6 +297,8 @@ mod tests {
             query: "test query".to_string(),
             kb_id: "".to_string(),
             top_k: 5,
+            retrieval_mode: "hybrid".to_string(),
+            graph_expand_depth: 2,
         };
 
         let result = validate_request(&req);
@@ -311,6 +317,8 @@ mod tests {
             query: "test query".to_string(),
             kb_id: "kb_123".to_string(),
             top_k: 0,
+            retrieval_mode: "hybrid".to_string(),
+            graph_expand_depth: 2,
         };
 
         let result = validate_request(&req);
@@ -330,6 +338,8 @@ mod tests {
             query: "test query".to_string(),
             kb_id: "kb_123".to_string(),
             top_k: 100,
+            retrieval_mode: "hybrid".to_string(),
+            graph_expand_depth: 2,
         };
 
         let result = validate_request(&req);

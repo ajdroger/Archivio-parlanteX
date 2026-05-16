@@ -383,6 +383,7 @@ mod tests {
         let provider = OllamaProvider::new(
             "http://localhost:11434".to_string(),
             8,
+            "qwen2.5:7b".to_string(),
             "nomic-embed-text".to_string(),
         );
         assert_eq!(provider.name(), "ollama");
@@ -395,6 +396,7 @@ mod tests {
         let provider = OllamaProvider::new(
             "http://localhost:11434/".to_string(),
             8,
+            "qwen2.5:7b".to_string(),
             "nomic-embed-text".to_string(),
         );
         assert_eq!(provider.api_url("chat"), "http://localhost:11434/api/chat");

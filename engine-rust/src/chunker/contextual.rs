@@ -232,6 +232,7 @@ mod tests {
         let provider = Arc::new(OllamaProvider::new(
             "http://localhost:11434".to_string(),
             8,
+            "qwen2.5:7b".to_string(),
             "nomic-embed-text".to_string(),
         ));
         let enricher = ContextualRetrievalEnricher::new(
@@ -251,6 +252,7 @@ mod tests {
         let provider = Arc::new(OllamaProvider::new(
             "http://localhost:11434".to_string(),
             8,
+            "qwen2.5:7b".to_string(),
             "nomic-embed-text".to_string(),
         ));
         let enricher = ContextualRetrievalEnricher::new(

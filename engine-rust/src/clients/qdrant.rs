@@ -3,11 +3,13 @@
 use qdrant_client::{
     Qdrant as RawQdrantClient,
     qdrant::{
-        vectors_config::Config as VectorsConfig, CreateCollectionBuilder, Distance,
-        PointStruct, ScoredPoint, SearchPointsBuilder, VectorParamsBuilder, VectorsConfigBuilder,
-        SearchParamsBuilder, SparseVectorParamsBuilder, SparseIndices, SparseVectorConfig,
+        CreateCollectionBuilder, Distance,
+        PointStruct, ScoredPoint, SearchPointsBuilder, VectorParamsBuilder,
+        SearchParamsBuilder, SparseIndices,
         NamedVectors, Vector as QdrantVector, Value, Condition, Filter,
         UpsertPointsBuilder, DeletePointsBuilder,
+        VectorsConfig, VectorParamsMap, VectorParams,
+        SparseVectorParams, SparseIndexConfig,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -78,14 +80,22 @@ impl QdrantWrapper {
             VectorParamsBuilder::new(self.dense_vector_size, Distance::Cosine).build(),
         );
 
-        let vectors_config = VectorsConfig::Map(named_vectors);
+        let vectors_config = VectorsConfig {
+            config: Some(qdrant_client::qdrant::vectors_config::Config::ParamsMap(
+                VectorParamsMap {
+                    map: named_vectors,
+                },
+            )),
+        };
 
         // Sparse vectors configuration
         let sparse_config = SparseVectorParams {
             index: Some(SparseIndexConfig {
                 full_scan_threshold: Some(10000),
                 on_disk: Some(false),
+                datatype: None,
             }),
+            modifier: None,
         };
 
         let mut sparse_vectors_config: HashMap<String, SparseVectorParams> = HashMap::new();
