@@ -236,7 +236,7 @@ impl ComparisonResult {
 }
 
 /// Request for contract comparison
-#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CompareRequest {
     /// Knowledge base ID
     pub kb_id: String,

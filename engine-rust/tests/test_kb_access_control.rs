@@ -306,8 +306,9 @@ async fn test_exhaustive_permission_matrix() {
     //
     // Expected: 100/100 pass, no permission bypass
 
-    let scenarios = vec![
+    let scenarios: Vec<()> = vec![
         // ... all test scenarios as data-driven test cases
+        // TODO: Implement 100 test scenarios for exhaustive permission testing
     ];
 
     let mut passed = 0;

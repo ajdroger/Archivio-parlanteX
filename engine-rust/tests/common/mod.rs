@@ -2,8 +2,40 @@
 ///
 /// Provides database setup, fixtures, and helper functions.
 
+use reqwest::header::{HeaderMap, HeaderValue};
 use sqlx::{MySql, Pool};
+use std::env;
 use std::sync::Arc;
+
+/// Get Rust Engine internal token from environment
+pub fn get_rust_token() -> String {
+    env::var("RUST_ENGINE_INTERNAL_TOKEN").unwrap_or_default()
+}
+
+/// Create authenticated HTTP client with X-Internal-Token header
+///
+/// If RUST_ENGINE_INTERNAL_TOKEN is empty (dev mode), returns unauthenticated client.
+/// Otherwise adds x-internal-token header for production auth.
+pub fn authenticated_client() -> reqwest::Client {
+    let token = get_rust_token();
+
+    if token.is_empty() {
+        // Dev mode: no auth required
+        return reqwest::Client::new();
+    }
+
+    // Production mode: add auth header
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "x-internal-token",
+        HeaderValue::from_str(&token).expect("Invalid RUST_ENGINE_INTERNAL_TOKEN format"),
+    );
+
+    reqwest::Client::builder()
+        .default_headers(headers)
+        .build()
+        .expect("Failed to build authenticated HTTP client")
+}
 
 /// Test database setup
 pub async fn setup_test_db() -> Pool<MySql> {

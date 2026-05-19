@@ -255,6 +255,7 @@ async fn test_contextual_enrichment() {
     let ollama = Arc::new(OllamaProvider::new(
         std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string()),
         8,
+        "qwen2.5:7b-instruct-q4_K_M".to_string(),
         "nomic-embed-text".to_string(),
     ));
 
