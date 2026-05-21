@@ -16,6 +16,7 @@ mod direct_permissions {
         let pool = setup_test_db().await;
         cleanup_test_db(&pool).await;
 
+        let _owner = create_test_user(&pool, 999, "Owner", "owner@test.com").await;
         let user_id = create_test_user(&pool, 1, "User A", "a@test.com").await;
         let kb_id = create_test_kb(&pool, "kb1", "KB1", 999, None).await;
         add_kb_permission(&pool, &kb_id, user_id, "READ").await;
