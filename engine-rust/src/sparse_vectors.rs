@@ -3,7 +3,7 @@
 /// Converts text into sparse vector representation for hybrid search.
 
 use std::collections::HashMap;
-use tantivy::tokenizer::{SimpleTokenizer, TextAnalyzer, Token, TokenStream};
+use tantivy::tokenizer::{SimpleTokenizer, TextAnalyzer, TokenStream};
 
 use crate::clients::qdrant::SparseVector;
 
@@ -31,14 +31,16 @@ impl BM25VectorGenerator {
     ///
     /// Uses simple term frequency (TF) weighting.
     /// For production BM25, would need IDF from corpus statistics.
-    pub fn generate(&self, text: &str) -> SparseVector {
+    pub fn generate(&mut self, text: &str) -> SparseVector {
         let mut term_freq: HashMap<String, usize> = HashMap::new();
-        let mut token_stream = self.tokenizer.token_stream(text);
 
-        // Count term frequencies
-        while let Some(token) = token_stream.next() {
-            let term = token.text.to_string();
-            *term_freq.entry(term).or_insert(0) += 1;
+        // Count term frequencies (in a scope to release borrow)
+        {
+            let mut token_stream = self.tokenizer.token_stream(text);
+            while let Some(token) = token_stream.next() {
+                let term = token.text.to_string();
+                *term_freq.entry(term).or_insert(0) += 1;
+            }
         }
 
         // Convert to sparse vector (term hash → weight)
@@ -88,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_bm25_generation() {
-        let generator = BM25VectorGenerator::new();
+        let mut generator = BM25VectorGenerator::new();
         let text = "contratto di fornitura servizi professionali clausola 7.2 penale";
 
         let sparse = generator.generate(text);
@@ -107,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_empty_text() {
-        let generator = BM25VectorGenerator::new();
+        let mut generator = BM25VectorGenerator::new();
         let sparse = generator.generate("");
 
         assert!(sparse.indices.is_empty());
@@ -116,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_repeated_terms() {
-        let generator = BM25VectorGenerator::new();
+        let mut generator = BM25VectorGenerator::new();
         let text = "contratto contratto contratto"; // Repeated term
 
         let sparse = generator.generate(text);
@@ -128,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_deterministic_hashing() {
-        let generator = BM25VectorGenerator::new();
+        let mut generator = BM25VectorGenerator::new();
         let text = "test document";
 
         let sparse1 = generator.generate(text);

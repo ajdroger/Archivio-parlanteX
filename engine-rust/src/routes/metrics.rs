@@ -3,7 +3,6 @@
 use axum::{http::StatusCode, response::IntoResponse};
 use lazy_static::lazy_static;
 use prometheus::{Encoder, IntCounter, IntGauge, Registry, TextEncoder};
-use std::sync::Arc;
 
 lazy_static! {
     /// Global Prometheus registry

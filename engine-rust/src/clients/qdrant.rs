@@ -3,11 +3,11 @@
 use qdrant_client::{
     Qdrant as RawQdrantClient,
     qdrant::{
-        vectors_config::Config as VectorsConfig, CreateCollectionBuilder, Distance,
-        PointStruct, ScoredPoint, SearchPointsBuilder, VectorParamsBuilder, VectorsConfigBuilder,
-        SearchParamsBuilder, SparseVectorParamsBuilder, SparseIndices, SparseVectorConfig,
-        NamedVectors, Vector as QdrantVector, Value, Condition, Filter,
+        CreateCollectionBuilder, Distance,
+        PointStruct, ScoredPoint, SearchPointsBuilder, VectorParamsBuilder,
+        Vector as QdrantVector, Value, Condition, Filter,
         UpsertPointsBuilder, DeletePointsBuilder,
+        VectorsConfig, VectorParamsMap,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -78,14 +78,22 @@ impl QdrantWrapper {
             VectorParamsBuilder::new(self.dense_vector_size, Distance::Cosine).build(),
         );
 
-        let vectors_config = VectorsConfig::Map(named_vectors);
+        let vectors_config = VectorsConfig {
+            config: Some(qdrant_client::qdrant::vectors_config::Config::ParamsMap(
+                VectorParamsMap {
+                    map: named_vectors,
+                },
+            )),
+        };
 
         // Sparse vectors configuration
         let sparse_config = SparseVectorParams {
             index: Some(SparseIndexConfig {
                 full_scan_threshold: Some(10000),
                 on_disk: Some(false),
+                datatype: None,
             }),
+            modifier: None,
         };
 
         let mut sparse_vectors_config: HashMap<String, SparseVectorParams> = HashMap::new();
@@ -223,7 +231,7 @@ impl QdrantWrapper {
         filter: Option<Filter>,
     ) -> Result<Vec<ScoredChunk>> {
         // In qdrant-client 1.17, SparseVector needs to be wrapped in Vector enum
-        let sparse_vec = qdrant_client::qdrant::SparseVector {
+        let _sparse_vec = qdrant_client::qdrant::SparseVector {
             indices: query_sparse.indices,
             values: query_sparse.values,
         };

@@ -115,7 +115,10 @@ impl CitationValidator {
         }
 
         let hash = hasher.finalize();
-        format!("hallucination:v1:{:x}", hash)
+        let hex_hash = hash.iter()
+            .map(|byte| format!("{:02x}", byte))
+            .collect::<String>();
+        format!("hallucination:v1:{}", hex_hash)
     }
 
     /// Get cached validation result
@@ -204,7 +207,7 @@ mod tests {
         // Same input = same key
         assert_eq!(key1, key2);
         assert!(key1.starts_with("hallucination:v1:"));
-        assert_eq!(key1.len(), 82); // "hallucination:v1:" + 64 hex chars
+        assert_eq!(key1.len(), 81); // "hallucination:v1:" (17 chars) + 64 hex chars
     }
 
     #[test]

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::errors::{AppError, Result};
+use crate::errors::Result;
 use crate::providers::LlmProvider;
 
 /// User intent for query routing

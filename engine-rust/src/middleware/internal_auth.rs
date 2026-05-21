@@ -94,6 +94,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn test_internal_auth_with_valid_token() {
         std::env::set_var("RUST_ENGINE_INTERNAL_TOKEN", "test_token_123");
 
@@ -115,6 +116,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn test_internal_auth_with_invalid_token() {
         std::env::set_var("RUST_ENGINE_INTERNAL_TOKEN", "test_token_123");
 
@@ -136,6 +138,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn test_internal_auth_missing_token() {
         std::env::set_var("RUST_ENGINE_INTERNAL_TOKEN", "test_token_123");
 
@@ -156,6 +159,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn test_internal_auth_no_token_configured() {
         std::env::remove_var("RUST_ENGINE_INTERNAL_TOKEN");
 

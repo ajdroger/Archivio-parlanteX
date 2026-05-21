@@ -10,8 +10,7 @@ use crate::models::comparison::{ComparisonAspect, ComparisonCell, ComparisonResu
 use crate::providers::LlmProvider;
 use crate::rag::hybrid_search::HybridSearcher;
 use qdrant_client::qdrant::{Condition, Filter};
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde::Deserialize;
 
 /// Multi-contract comparator
 pub struct MultiContractComparator {
@@ -28,7 +27,7 @@ pub struct MultiContractComparator {
     top_k_sparse: usize,
 
     /// Top-k after reranking per document
-    top_k_rerank: usize,
+    _top_k_rerank: usize,
 
     /// RRF k parameter
     rrf_k: u32,
@@ -45,7 +44,7 @@ impl MultiContractComparator {
             llm,
             top_k_dense: 15,
             top_k_sparse: 15,
-            top_k_rerank: 8,
+            _top_k_rerank: 8,
             rrf_k: 60,
         }
     }

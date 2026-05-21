@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::Semaphore;
 
 use crate::errors::{AppError, Result};
-use super::{LlmProvider, ChatRequest, ChatResponse, StreamEvent, ModelInfo, Usage, FinishReason, Message};
+use super::{LlmProvider, ChatRequest, ChatResponse, StreamEvent, ModelInfo, Usage, FinishReason};
 
 /// Ollama provider (local, zero-cost)
 pub struct OllamaProvider {
@@ -383,6 +383,7 @@ mod tests {
         let provider = OllamaProvider::new(
             "http://localhost:11434".to_string(),
             8,
+            "qwen2.5:7b".to_string(),
             "nomic-embed-text".to_string(),
         );
         assert_eq!(provider.name(), "ollama");
@@ -395,6 +396,7 @@ mod tests {
         let provider = OllamaProvider::new(
             "http://localhost:11434/".to_string(),
             8,
+            "qwen2.5:7b".to_string(),
             "nomic-embed-text".to_string(),
         );
         assert_eq!(provider.api_url("chat"), "http://localhost:11434/api/chat");

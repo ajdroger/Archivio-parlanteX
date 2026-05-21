@@ -172,7 +172,6 @@ impl LlmProvider for AnthropicProvider {
             .into_iter()
             .filter_map(|c| match c {
                 ContentBlock::Text { text } => Some(text),
-                _ => None,
             })
             .collect::<Vec<_>>()
             .join("\n");

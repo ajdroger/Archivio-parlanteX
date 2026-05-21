@@ -16,7 +16,7 @@ use std::time::Instant;
 
 use crate::clients::qdrant::QdrantWrapper;
 use crate::errors::{AppError, Result};
-use crate::rag::citation_validator::{CitationValidator, SourceDocument, ValidationResult};
+use crate::rag::citation_validator::{CitationValidator, SourceDocument};
 use crate::rag::hybrid_search::HybridSearcher;
 use crate::routes::ingest::AppState;
 

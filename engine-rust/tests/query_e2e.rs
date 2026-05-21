@@ -7,7 +7,10 @@
 ///
 /// Run with: cargo test --test query_e2e -- --ignored --nocapture
 
+mod common;
+
 use archivio_parlante_rust_engine::models::document::{IngestRequest, IngestResponse};
+use common::authenticated_client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::env;
@@ -59,11 +62,13 @@ async fn test_query_after_ingestion_e2e() {
     let rust_engine_url =
         env::var("RUST_ENGINE_URL").unwrap_or_else(|_| "http://localhost:8090".to_string());
 
-    let client = reqwest::Client::new();
+    let client = authenticated_client();
 
     // Step 1: Ingest sample document
-    let temp_file = "/tmp/test_contract_query_e2e.txt";
-    fs::write(temp_file, SAMPLE_CONTRACT).expect("Failed to write test file");
+    // Write to shared/uploads which is mounted in Docker
+    let temp_file_host = "../shared/uploads/test_contract_query_e2e.txt";
+    let temp_file_docker = "/shared/uploads/test_contract_query_e2e.txt";
+    fs::write(temp_file_host, SAMPLE_CONTRACT).expect("Failed to write test file");
 
     let doc_id = format!("doc_query_e2e_{}", chrono::Utc::now().timestamp());
     let kb_id = "kb_query_test_e2e".to_string();
@@ -71,7 +76,7 @@ async fn test_query_after_ingestion_e2e() {
     let ingest_request = IngestRequest {
         doc_id: doc_id.clone(),
         kb_id: kb_id.clone(),
-        file_path: temp_file.to_string(),
+        file_path: temp_file_docker.to_string(), // Use Docker path for API call
         source_name: "test_contract.txt".to_string(),
         mime_type: "text/plain".to_string(),
         tags: vec!["test".to_string(), "query_e2e".to_string()],
@@ -170,7 +175,7 @@ async fn test_query_after_ingestion_e2e() {
     println!("  Top score: {:.4}", first_result.score);
 
     // Cleanup
-    fs::remove_file(temp_file).ok();
+    fs::remove_file(temp_file_host).ok();
     println!("✅ Test cleanup completed");
 }
 
@@ -181,7 +186,7 @@ async fn test_query_validation_errors() {
     let rust_engine_url =
         env::var("RUST_ENGINE_URL").unwrap_or_else(|_| "http://localhost:8090".to_string());
 
-    let client = reqwest::Client::new();
+    let client = authenticated_client();
 
     // Test 1: Empty query
     let payload = json!({
@@ -261,7 +266,7 @@ async fn test_query_nonexistent_kb() {
     let rust_engine_url =
         env::var("RUST_ENGINE_URL").unwrap_or_else(|_| "http://localhost:8090".to_string());
 
-    let client = reqwest::Client::new();
+    let client = authenticated_client();
 
     let payload = json!({
         "query": "test query",
@@ -300,7 +305,7 @@ async fn test_query_default_top_k() {
     let rust_engine_url =
         env::var("RUST_ENGINE_URL").unwrap_or_else(|_| "http://localhost:8090".to_string());
 
-    let client = reqwest::Client::new();
+    let client = authenticated_client();
 
     let payload = json!({
         "query": "test query",
