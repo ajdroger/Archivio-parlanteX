@@ -127,6 +127,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn test_hsts_only_in_production() {
         std::env::set_var("APP_ENV", "production");
 
@@ -148,6 +149,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn test_no_hsts_in_dev() {
         std::env::set_var("APP_ENV", "dev");
 
