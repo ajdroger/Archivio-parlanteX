@@ -291,8 +291,10 @@ mod tests {
     use super::*;
 
     #[test]
+    #[serial_test::serial]
     fn test_config_defaults() {
         // Set required env vars for test
+        std::env::set_var("APP_ENV", "dev");
         std::env::set_var("OLLAMA_URL", "http://localhost:11434");
         std::env::set_var("QDRANT_URL", "http://localhost:6333");
         std::env::set_var("PYTHON_WORKER_URL", "http://localhost:8091");
