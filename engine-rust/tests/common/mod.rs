@@ -116,6 +116,27 @@ pub async fn create_test_user(pool: &Pool<MySql>, id: i64, name: &str, email: &s
 
 /// Create test workspace
 pub async fn create_test_workspace(pool: &Pool<MySql>, id: &str, name: &str, owner_id: i64) -> String {
+    // Ensure owner exists (create if not)
+    let owner_exists = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM ap_users WHERE id = ?"
+    )
+    .bind(owner_id)
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0);
+
+    if owner_exists == 0 {
+        // User doesn't exist, try to create it
+        sqlx::query(
+            "INSERT INTO ap_users (id, full_name, email, password_hash) VALUES (?, 'Workspace Owner', ?, 'hash') ON DUPLICATE KEY UPDATE id=id"
+        )
+        .bind(owner_id)
+        .bind(format!("ws_owner{}@test.com", owner_id))
+        .execute(pool)
+        .await
+        .expect(&format!("Failed to create owner user {} for workspace", owner_id));
+    }
+
     sqlx::query(
         r#"
         INSERT INTO ap_workspaces (id, name, owner_user_id)
@@ -150,13 +171,15 @@ pub async fn create_test_kb(
     .unwrap_or(0);
 
     if owner_exists == 0 {
-        let _ = sqlx::query(
-            "INSERT IGNORE INTO ap_users (id, full_name, email, password_hash) VALUES (?, 'Test Owner', ?, 'hash')"
+        // User doesn't exist, try to create it
+        sqlx::query(
+            "INSERT INTO ap_users (id, full_name, email, password_hash) VALUES (?, 'Test Owner', ?, 'hash') ON DUPLICATE KEY UPDATE id=id"
         )
         .bind(owner_id)
         .bind(format!("owner{}@test.com", owner_id))
         .execute(pool)
-        .await;
+        .await
+        .expect(&format!("Failed to create owner user {} for KB", owner_id));
     }
 
     sqlx::query(
@@ -178,6 +201,27 @@ pub async fn create_test_kb(
 
 /// Add workspace member
 pub async fn add_workspace_member(pool: &Pool<MySql>, workspace_id: &str, user_id: i64, role: &str) {
+    // Ensure user exists (in case of parallel test cleanup race conditions)
+    let user_exists = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM ap_users WHERE id = ?"
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0);
+
+    if user_exists == 0 {
+        // User doesn't exist, recreate it
+        sqlx::query(
+            "INSERT INTO ap_users (id, full_name, email, password_hash) VALUES (?, 'Test User', ?, 'hash') ON DUPLICATE KEY UPDATE id=id"
+        )
+        .bind(user_id)
+        .bind(format!("user{}@test.com", user_id))
+        .execute(pool)
+        .await
+        .expect(&format!("Failed to recreate user {} for workspace member", user_id));
+    }
+
     sqlx::query(
         r#"
         INSERT INTO ap_workspace_members (workspace_id, user_id, role)
@@ -194,6 +238,27 @@ pub async fn add_workspace_member(pool: &Pool<MySql>, workspace_id: &str, user_i
 
 /// Add KB permission
 pub async fn add_kb_permission(pool: &Pool<MySql>, kb_id: &str, user_id: i64, permission: &str) {
+    // Ensure user exists (in case of parallel test cleanup race conditions)
+    let user_exists = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM ap_users WHERE id = ?"
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0);
+
+    if user_exists == 0 {
+        // User doesn't exist, recreate it
+        sqlx::query(
+            "INSERT INTO ap_users (id, full_name, email, password_hash) VALUES (?, 'Test User', ?, 'hash') ON DUPLICATE KEY UPDATE id=id"
+        )
+        .bind(user_id)
+        .bind(format!("user{}@test.com", user_id))
+        .execute(pool)
+        .await
+        .expect(&format!("Failed to recreate user {} for KB permission", user_id));
+    }
+
     sqlx::query(
         r#"
         INSERT INTO ap_kb_permissions (kb_id, user_id, permission)
