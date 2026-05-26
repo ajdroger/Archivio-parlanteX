@@ -38,14 +38,19 @@ Qdrant  Ollama  🐍 Python AI Worker (FastAPI) — PDF Parsing, OCR, BGE Rerank
 MySQL 8 + Redis 7
 ```
 
-**7 microservizi orchestrati via Docker Compose:**
-- `php-gateway`: API Gateway e autenticazione (porta 8080)
-- `rust-engine`: Core RAG engine (porta 8090)
-- `python-worker`: AI Worker per parsing e ML (porta 8091)
-- `qdrant`: Vector database (porta 6333)
-- `ollama`: LLM locale (porta 11434)
-- `mysql`: Database relazionale (`archivio_parlante_x`)
-- `redis`: Cache e rate limiting
+**7 microservizi orchestrati via Docker Compose** (porte **host** — coexistence con `archivio-parlante-starter`):
+
+| Servizio | Porta host | Note |
+|---|---|---|
+| `php-gateway` | **9080** | Non usare 8080 (riservata allo starter) |
+| `rust-engine` | 8090 | |
+| `python-worker` | 8091 | Spesso nativo su host (WSL2) |
+| `qdrant` | **6335** (REST), 6336 (gRPC) | Non usare 6333 su host |
+| `ollama` | 11434 | Condivisa con starter, OK |
+| `mysql` | **3307** | Non usare 3306 su host (AMPPS/starter) |
+| `redis` | **6380** | Non usare 6379 su host |
+
+Vedi [docs/PORTS_COEXISTENCE.md](./docs/PORTS_COEXISTENCE.md) per URL interni Docker vs host.
 
 ---
 
@@ -83,7 +88,8 @@ make migrate
 make health   # curl ai 4 /health endpoint
 ```
 
-Accedi all'UI: **http://localhost:8080**
+- API Gateway (health): **http://localhost:9080/health**
+- Frontend dev (Vite): **http://localhost:5173** (con backend su 9080)
 
 ---
 
@@ -102,6 +108,7 @@ Archivio Parlante include una suite completa di manuali (2,800+ righe) per tutti
 
 - **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)**: Architettura dettagliata del sistema
 - **[RUNBOOK.md](./docs/RUNBOOK.md)**: Runbook operativo per troubleshooting
+- **[PORTS_COEXISTENCE.md](./docs/PORTS_COEXISTENCE.md)**: Porte host vs Docker (coexistence con starter)
 - **[CHANGELOG.md](./CHANGELOG.md)**: Storico versioni con dettagli tecnici
 - **[PIANO_IMPLEMENTAZIONE_RUST_PYTHON.md](./PIANO_IMPLEMENTAZIONE_RUST_PYTHON.md)**: Piano di implementazione completo (documento maestro)
 - **[docs/ADR/](./docs/ADR/)**: Architecture Decision Records (decisioni architetturali documentate)
@@ -168,10 +175,13 @@ npx tsc --noEmit
 Crea `frontend/.env.local` (escluso da git):
 
 ```env
-# Base URL del backend (default: /api)
-VITE_API_BASE_URL=http://localhost:8080/api
+# Opzione A (consigliata): proxy Vite → PHP su 9080 (vedi vite.config.ts)
+# VITE_API_BASE_URL=/api
 
-# Se backend su porta diversa o dominio diverso
+# Opzione B: chiamata diretta al gateway Docker
+VITE_API_BASE_URL=http://localhost:9080/api
+
+# Produzione
 # VITE_API_BASE_URL=https://api.archivioparlante.com/api
 ```
 
@@ -226,9 +236,9 @@ frontend/
 
 ### Flusso di Sviluppo
 
-1. **Backend running**: Assicurati che `make up` sia attivo (backend su porta 8080)
+1. **Backend running**: `make up` (PHP Gateway su **9080**, non 8080)
 2. **Frontend dev**: `cd frontend && npm run dev` (porta 5173)
-3. **Proxy dev**: Vite proxya richieste `/api/*` a `http://localhost:8080` (vedi `vite.config.ts`)
+3. **Proxy dev**: Vite proxya `/api/*` → `http://localhost:9080` (vedi `frontend/vite.config.ts`)
 4. **Hot Reload**: Modifiche ai componenti si riflettono immediatamente
 5. **Build + Test**: `npm run build && npm run preview` per testare build di produzione
 

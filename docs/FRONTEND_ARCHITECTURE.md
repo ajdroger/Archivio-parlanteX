@@ -40,7 +40,7 @@
 └─────────────────────────────────────────────────────────────┘
                           ↓ HTTP
 ┌─────────────────────────────────────────────────────────────┐
-│              PHP Gateway (localhost:8080)                   │
+│         PHP Gateway (localhost:9080 / Vite proxy /api)      │
 │  POST /api/auth/login, /api/auth/register, etc.            │
 │  POST /api/query, /api/ingest, /api/compare                │
 │  GET  /llm/providers                                        │
@@ -604,7 +604,7 @@ server {
   }
   
   location /api {
-    proxy_pass http://php-gateway:8080;
+    proxy_pass http://php-gateway:80;
   }
 }
 ```

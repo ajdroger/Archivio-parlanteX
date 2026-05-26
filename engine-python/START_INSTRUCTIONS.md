@@ -209,10 +209,10 @@ watch -n 5 curl http://localhost:8091/health
 **Dopo l'avvio, verifica tutti i servizi:**
 
 ```bash
-curl http://localhost:8080/api/health  # PHP Gateway
+curl http://localhost:9080/health  # PHP Gateway
 curl http://localhost:8090/health      # Rust Engine  
 curl http://localhost:8091/health      # Python Worker (NATIVO)
-curl http://localhost:6333/collections # Qdrant
+curl http://localhost:6335/collections # Qdrant (host REST)
 curl http://localhost:11434/api/tags   # Ollama
 ```
 

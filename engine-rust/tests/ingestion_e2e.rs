@@ -94,7 +94,7 @@ async fn test_ingestion_e2e_text_document() {
 
     // Verify chunks exist in Qdrant
     let qdrant_url = env::var("QDRANT_URL")
-        .unwrap_or_else(|_| "http://localhost:6333".to_string());
+        .unwrap_or_else(|_| "http://localhost:6335".to_string());
 
     let collection_name = format!("ap_kb_{}", kb_id);
     let qdrant = QdrantWrapper::new(qdrant_url, collection_name, 768)

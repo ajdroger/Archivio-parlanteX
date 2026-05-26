@@ -261,7 +261,7 @@ cd engine-rust && cargo test test_ingest_with_kg_extraction
 cd engine-rust && cargo run --release
 
 # Test PHP proxy
-curl -X POST http://localhost:8080/api/query \
+curl -X POST http://localhost:9080/api/query \
   -H "Authorization: Bearer $JWT" \
   -d '{"kb_id": "test", "query": "test"}'
 ```

@@ -432,7 +432,7 @@ When ready to execute integration tests:
   - [ ] PHP Gateway: `curl http://localhost:9080/health`
   - [ ] MySQL: `docker exec archivio-mysql mysql -u root -pdevpass123 -e "SELECT 1"`
   - [ ] Redis: `docker exec archivio-redis redis-cli PING`
-  - [ ] Qdrant: `curl http://localhost:6333/`
+  - [ ] Qdrant: `curl http://localhost:6335/`
 - [ ] Python worker running: `cd engine-python && uvicorn app.main:app --port 8091`
 - [ ] Python dependencies installed: `cd benchmarks && pip install httpx rich`
 - [ ] k6 installed (optional): `k6 version`

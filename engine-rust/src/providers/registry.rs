@@ -179,7 +179,7 @@ mod tests {
             ollama_model_chat: "qwen2.5:7b".to_string(),
             ollama_model_chat_small: "qwen2.5:3b".to_string(),
             ollama_model_embed: "nomic-embed-text".to_string(),
-            qdrant_url: "http://localhost:6333".to_string(),
+            qdrant_url: "http://localhost:6335".to_string(),
             python_worker_url: "http://localhost:8091".to_string(),
             mysql_url: "mysql://root@localhost/test".to_string(),
             mysql_db: "test".to_string(),

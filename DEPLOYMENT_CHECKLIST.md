@@ -37,8 +37,8 @@ docker ps  # Should show 7 containers
 2. archivio-redis (Redis 7)
 3. archivio-rust-engine (Port 8090)
 4. archivio-python-worker (Port 8091)
-5. archivio-php-gateway (Port 8080)
-6. archivio-qdrant (Port 6333)
+5. archivio-php-gateway (host port 9080)
+6. archivio-qdrant (host REST 6335)
 7. archivio-ollama (Port 11434)
 
 ## ⏳ Phase 4: Health Checks
@@ -52,8 +52,8 @@ docker ps  # Should show 7 containers
 ```bash
 curl http://localhost:8090/health  # Rust
 curl http://localhost:8091/health  # Python
-curl http://localhost:8080/api/health  # PHP
-curl http://localhost:6333/health  # Qdrant
+curl http://localhost:9080/health  # PHP Gateway
+curl http://localhost:6335/  # Qdrant (host REST)
 curl http://localhost:11434/api/tags  # Ollama
 ```
 
@@ -141,7 +141,7 @@ docker compose logs -f  # Monitor all services
 - **Docker Desktop**: Must be running on Windows
 - **WSL2**: Required for Docker Desktop
 - **RAM**: Full stack requires ~4GB RAM
-- **Ports**: Ensure 5174, 8080, 8090, 8091, 3306, 6379, 6333, 11434 are free
+- **Ports (ParlanteX host)**: 5173, **9080**, 8090, 8091, **3307**, **6380**, **6335**, 11434 free; 8080/3306/6379/6333 reserved for starter
 - **Ollama Models**: Will auto-download on first use (~5GB for qwen2.5:7b)
 
 ## 🎯 Success Criteria

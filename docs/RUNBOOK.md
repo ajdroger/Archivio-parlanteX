@@ -4,6 +4,8 @@
 **Last Updated**: 2026-05-08  
 **Target Audience**: DevOps, SRE, System Administrators
 
+> **Porte host vs Docker:** vedi [PORTS_COEXISTENCE.md](./PORTS_COEXISTENCE.md) (9080, 3307, 6380, 6335 — non 8080/3306/6379/6333 sul host).
+
 ---
 
 ## Table of Contents
@@ -515,7 +517,7 @@ docker logs archivio-rust-engine --tail 50 | grep -i websocket
   ```
 - Firewall blocking WebSocket upgrade: Check CORS configuration in `.env`:
   ```bash
-  CORS_ORIGINS=http://localhost:5173,http://localhost:8080
+  CORS_ORIGINS=http://localhost:5173,http://localhost:9080
   ```
 
 #### 9. Permission Denied on KB Access (Fase 6.3)
