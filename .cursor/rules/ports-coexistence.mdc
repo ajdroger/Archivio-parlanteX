@@ -1,0 +1,28 @@
+---
+description: Port mapping when Archivio ParlanteX runs beside archivio-parlante-starter
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Port coexistence (ParlanteX + starter)
+
+## Host ports for ParlanteX (never use starter ports on host)
+
+- PHP Gateway: **9080** (NOT 8080)
+- MySQL: **3307** (NOT 3306)
+- Redis: **6380** (NOT 6379)
+- Qdrant REST: **6335** (NOT 6333)
+- Rust: 8090 | Python: 8091 | Ollama: 11434 | Vite: 5173
+
+## Docker internal URLs (.env on archivio_net)
+
+- `MYSQL_HOST=mysql`, `MYSQL_PORT=3306`
+- `REDIS_URL=redis://redis:6379`
+- `QDRANT_URL=http://qdrant:6333`
+- `RUST_ENGINE_URL=http://rust-engine:8090`
+- `PYTHON_WORKER_URL=http://python-worker:8091`
+
+Do not change `docker-compose.yml` external mappings without user approval.
+
+Reference: `docs/PORTS_COEXISTENCE.md`
