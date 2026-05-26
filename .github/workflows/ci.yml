@@ -15,9 +15,24 @@ jobs:
   rust-test:
     name: Rust Tests & Linting
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        ports:
+          - 3307:3306
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: archivio_parlante_x
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
     defaults:
       run:
         working-directory: ./engine-rust
+    env:
+      DATABASE_URL: mysql://root@127.0.0.1:3307/archivio_parlante_x
     steps:
       - uses: actions/checkout@v4
 
@@ -44,7 +59,10 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: Run tests
+      - name: Run lib tests
+        run: cargo test --lib --release
+
+      - name: Run integration tests
         run: cargo test --release --all-features
 
       - name: Install cargo-tarpaulin
@@ -91,10 +109,10 @@ jobs:
         run: ruff check .
 
       - name: MyPy type check
-        run: mypy app --strict --ignore-missing-imports || true
+        run: mypy app --strict --ignore-missing-imports
 
-      - name: Run tests with coverage
-        run: pytest --cov=app --cov-report=xml --cov-report=term
+      - name: Run unit tests with coverage
+        run: pytest tests/ -m "not integration" --cov=app --cov-report=xml --cov-report=term
 
   # === PHP Gateway Tests ===
   php-test:
@@ -123,10 +141,11 @@ jobs:
         run: composer install --prefer-dist --no-progress
 
       - name: PHPStan static analysis
-        run: composer run phpstan || true
+        run: composer run phpstan
+        continue-on-error: true
 
       - name: Run PHPUnit tests
-        run: composer test || true
+        run: composer test
 
   # === Frontend Tests ===
   frontend-test:
@@ -149,13 +168,14 @@ jobs:
         run: npm ci
 
       - name: ESLint
-        run: npm run lint || true
+        run: npm run lint
+        continue-on-error: true
 
       - name: TypeScript check
-        run: npm run type-check || true
+        run: npx tsc --noEmit
 
       - name: Run unit tests
-        run: npm run test:unit || true
+        run: npm run test:run
 
       - name: Build
         run: npm run build
