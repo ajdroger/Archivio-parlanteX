@@ -8,7 +8,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Log\LoggerInterface;
 
-final class RustEngineProxy
+class RustEngineProxy
 {
     public function __construct(
         private Client $httpClient,
@@ -123,5 +123,32 @@ final class RustEngineProxy
 
             throw new \RuntimeException('Proxy request failed: ' . $e->getMessage(), 0, $e);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function query(array $data): array
+    {
+        return $this->proxyRequest('POST', '/query', $data);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function ingest(array $data): array
+    {
+        return $this->proxyRequest('POST', '/ingest', $data);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function compare(array $data): array
+    {
+        return $this->proxyRequest('POST', '/compare', $data);
     }
 }

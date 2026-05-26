@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Stabilization & Documentation (Phase 0-5)
+
+**Phase 0 - Repository Stabilization**
+- Critical fixes: B1 (RustEngineProxy methods), B2 (Rust middleware export), B3 (port coexistence 9080/3307/6380/6335)
+- Updated `.gitignore` to exclude test cache/coverage artifacts
+- 8 new ADRs (0006-0016): async-trait, rate limiting, FastAPI, Slim, Zustand, Playwright, BFS/DFS, string similarity
+- Phase verification reports: FASE_2, FASE_3, FASE_5
+- Cursor rules for port coexistence (`.cursor/rules/ports-coexistence.mdc`)
+- PR #9: https://github.com/ajdroger/Archivio-parlanteX/pull/9
+
+**Phase 1 - Rust Testing Strategy**
+- ADR 0017: sqlx DATABASE_URL strategy (fallback from offline due to Windows rustc crashes)
+- Fixed `.env.example`: APP_NAME with quotes to avoid dotenvy parse error
+- Rust lib tests: 135/135 pass (unit tests fully green)
+- Integration tests deferred to CI Linux (Windows STATUS_ACCESS_VIOLATION workaround)
+
+**Phase 2 - PHP Gateway Quality**
+- JwtService: fixed PHPStan shaped array type hint
+- composer test: 69/69 pass (1 skip for time manipulation documented)
+- PHPStan level 8: 24 errors remaining (iterable array value types)
+- Coverage: 49.40% (target 80% documented for future sprint)
+
+**Phase 3 - Python Worker Testing**
+- Documented testing strategy: `engine-python/TESTING_SETUP.md`
+- Classified integration vs unit markers (rerank ML, pdf_parser GPU, parse HTTP)
+- Venv setup instructions for WSL2
+- Worker container verified on port 8091
+
+**Phase 4 - Frontend Quality**
+- Vitest: 53/53 pass
+- TypeScript: tsc --noEmit exit 0
+- ESLint: 64 issues remaining (no-unused-vars, auto-fix applied for 3 warnings)
+- Playwright E2E: 4 spec files exist (deferred to stack integration)
+
+**Phase 5 - Docker Stack E2E**
+- All 9 containers Up and healthy (4+ days uptime)
+- Health endpoints verified: PHP, Rust, Python, Qdrant, Ollama (5/5 OK)
+- Port coexistence confirmed: no conflicts with archivio-parlante-starter
+- Ollama models: 4 loaded (qwen2.5:7b default, qwen2.5:14b/3b, nomic-embed-text)
+- Stack health documentation: `docs/STACK_HEALTH_2026-05-26.md`
+
+### Fixed
+- PHP RustEngineProxy: added missing query/ingest/compare proxy methods (B1)
+- Rust: exported `pub mod middleware` for integration test compilation (B2)
+- Port configuration: updated all services to coexistence ports (B3)
+- ENV parsing: added quotes to APP_NAME in .env.example
+
+### Changed
+- Updated STATUS.md with accurate test counts and phase progress
+- README: changed status badge from "100% Production Ready" to "In Stabilization" (honest claim)
+
+### Documentation
+- Added `docs/ANALISI_PROGETTO_2026-05-25.md`: comprehensive gap analysis
+- Added `docs/PIANO_OPERATIVO_2026-05-25.md`: 9-phase stabilization roadmap
+- Added `docs/PORTS_COEXISTENCE.md`: port allocation strategy vs starter
+- Updated `docs/RUNBOOK.md` with 9080/6335 port references
+
+### Deferred (Quality Polish for v1.0)
+- PHP coverage 49% → 80% (~6h, non-blocking)
+- PHPStan 24 type annotation errors (~3h)
+- Python pytest markers + venv setup (~3h)
+- Frontend ESLint no-unused-vars cleanup (~2h)
+- Rust integration tests on CI Linux (Windows rustc crash workaround)
+
+**Total deferred effort**: ~14-16 hours for 100% clean slate.
+
 ---
 
 ## [0.8.1] - 2026-05-14

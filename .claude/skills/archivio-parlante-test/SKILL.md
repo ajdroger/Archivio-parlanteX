@@ -202,7 +202,7 @@ async def test_parse_and_extract_kg_full_flow():
 import { test, expect } from '@playwright/test'
 
 test('upload contract and query', async ({ page }) => {
-  await page.goto('http://localhost:8080')
+  await page.goto('http://localhost:5173')  // Vite dev; API via proxy → PHP :9080
   
   // Login
   await page.fill('[name="email"]', 'test@example.com')

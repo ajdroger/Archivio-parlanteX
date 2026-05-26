@@ -345,7 +345,7 @@ Finché questi 8 step non sono tutti verdi, la fase non è chiusa e non si proce
                        └───────────┬───────────┘
                                    │ HTTPS/JWT
                        ┌───────────▼───────────────────────────────┐
-                       │  PHP Gateway — Slim 4  (porta 8080)        │
+                       │  PHP Gateway — Slim 4  (host porta 9080)   │
                        │  ✓ Auth JWT / API Key                      │
                        │  ✓ Rate limiting Redis                     │
                        │  ✓ Gestione utenti, admin, sessioni        │
@@ -915,7 +915,7 @@ Leggi prima `.claude/CLAUDE.md` e `docs/ADR/0001-path-build-vs-clone.md` per all
 Il tuo compito in questa fase è SOLO creare l'infrastruttura Docker Compose — niente codice applicativo dentro Rust o Python ancora. Devi:
 
 1. Creare nella root del progetto un file `docker-compose.yml` con questi 6 servizi collegati a una rete interna chiamata `archivio_net`:
-   - `php-gateway`: immagine `php:8.2-apache`, monta la root del progetto in `/var/www/html`, espone porta 8080. Dipende da mysql e rust-engine.
+   - `php-gateway`: immagine `php:8.2-apache`, espone host **9080:80**. Dipende da mysql e rust-engine.
    - `rust-engine`: build da `./engine-rust/Dockerfile`, espone porta 8090. Dipende da qdrant, ollama, python-worker.
    - `python-worker`: build da `./engine-python/Dockerfile`, espone porta 8091. Supporta opzionalmente GPU via `deploy.resources.reservations.devices` (commentalo se non disponibile).
    - `qdrant`: immagine `qdrant/qdrant:v1.12.4`, espone porta 6333 (REST) e 6334 (gRPC), volume persistente `qdrant_data:/qdrant/storage`.
@@ -1763,7 +1763,7 @@ Requisiti:
 Verifica:
 - `composer test` passa.
 - `composer analyse` (PHPStan level 8) pulito.
-- `curl http://localhost:8080/api/health` ritorna `{"status":"ok","rust_engine":"ok"}`.
+- `curl http://localhost:9080/health` ritorna `{"status":"ok","rust_engine":"ok"}`.
 - Upload di un PDF via `POST /api/kb/{kb_id}/documents` → Rust ingest → query funziona.
 ````
 

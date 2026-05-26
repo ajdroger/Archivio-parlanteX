@@ -27,7 +27,7 @@ The Rust Engine is the core processing component of Archivio Parlante, handling:
 
 - Rust 1.82+
 - Running services:
-  - Qdrant (port 6333)
+  - Qdrant (host REST **6335**; internal `http://qdrant:6333` in Docker)
   - Ollama (port 11434)
   - Python AI Worker (port 8091)
 

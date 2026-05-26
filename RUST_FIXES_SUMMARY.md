@@ -226,8 +226,8 @@ docker ps  # Verify 7 services running
 ```bash
 curl http://localhost:8090/health  # Rust
 curl http://localhost:8091/health  # Python
-curl http://localhost:8080/health  # PHP
-curl http://localhost:6333/health  # Qdrant
+curl http://localhost:9080/health  # PHP
+curl http://localhost:6335/  # Qdrant (host)
 ```
 
 ### Phase 7: Database Seed

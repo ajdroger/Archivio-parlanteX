@@ -15,7 +15,7 @@ docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 ```
 
 Expected services:
-- `archivio-php-gateway` (port 8080)
+- `archivio-php-gateway` (host port **9080** → container 80)
 - `archivio-rust-engine` (port 8090)
 - `archivio-python-worker` (port 8091)
 - `archivio-qdrant` (port 6333)

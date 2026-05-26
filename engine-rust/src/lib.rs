@@ -6,6 +6,7 @@ pub mod chunker;
 pub mod clients;
 pub mod config;
 pub mod errors;
+pub mod middleware;
 pub mod models;
 pub mod providers;
 pub mod rag;

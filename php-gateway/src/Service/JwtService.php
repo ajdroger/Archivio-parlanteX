@@ -99,7 +99,7 @@ class JwtService
      * Validate and decode access token
      *
      * @param string $token JWT access token
-     * @return array{sub: string, email: string, role: string, iat: int, exp: int} Decoded payload
+     * @return array<string, mixed> Decoded payload with keys: sub, email, role, iat, exp
      * @throws AuthenticationException If token is invalid, expired, or tampered
      */
     public function validateAccessToken(string $token): array

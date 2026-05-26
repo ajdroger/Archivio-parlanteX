@@ -414,7 +414,7 @@ async fn test_all_services_health() {
     let python_url = env::var("PYTHON_WORKER_URL")
         .unwrap_or_else(|_| "http://localhost:8091".to_string());
     let qdrant_url = env::var("QDRANT_URL")
-        .unwrap_or_else(|_| "http://localhost:6333".to_string());
+        .unwrap_or_else(|_| "http://localhost:6335".to_string());
     let ollama_url = env::var("OLLAMA_URL")
         .unwrap_or_else(|_| "http://localhost:11434".to_string());
 

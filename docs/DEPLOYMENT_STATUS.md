@@ -44,7 +44,7 @@ Status: BLOCKER for E2E tests and deployment
 ### Affected Services
 - ❌ rust-engine (port 8090) - Compilation failed
 - ❌ python-worker (port 8091) - Build canceled (depends on Rust)
-- ❌ php-gateway (port 8080) - Not started (depends on Rust)
+- ❌ php-gateway (host port 9080) - Not started (depends on Rust)
 - ❌ qdrant (port 6333) - Not started
 - ❌ ollama (port 11434) - Not started
 - ✅ mysql (port 3307) - Running

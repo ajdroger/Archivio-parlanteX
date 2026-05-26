@@ -177,7 +177,7 @@ docker compose exec qdrant qdrant --version
 docker compose logs qdrant | grep -i error
 
 # 3. Test Qdrant API directly
-curl http://localhost:6333/collections
+curl http://localhost:6335/collections
 
 # 4. Run isolated test
 cd engine-rust
@@ -359,10 +359,10 @@ MySQL 8 + Redis 7
 ```
 
 **7 Services** orchestrati via Docker Compose:
-- php-gateway (8080)
+- php-gateway (9080 host)
 - rust-engine (8090)
 - python-worker (8091)
-- qdrant (6333)
+- qdrant (6335 host REST)
 - ollama (11434)
 - mysql (3306)
 - redis (6379)

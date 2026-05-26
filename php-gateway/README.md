@@ -42,7 +42,7 @@ composer cs-check
 docker build -t archivio-php-gateway .
 
 # Run
-docker run -p 8080:80 \
+docker run -p 9080:80 \
   -e RUST_ENGINE_URL=http://rust-engine:8090 \
   archivio-php-gateway
 ```

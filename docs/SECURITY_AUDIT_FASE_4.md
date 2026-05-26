@@ -513,7 +513,7 @@ client.interceptors.request.use((config) => {
 
 | Requirement | Status | Evidence |
 |---|---|---|
-| V14.1.1: Segregation of components | ✅ PASS | Frontend (port 5173 dev), backend (port 8080) separate |
+| V14.1.1: Segregation of components | ✅ PASS | Frontend (port 5173 dev), PHP gateway (host 9080) separate |
 | V14.1.3: Secure headers | ℹ️ PRODUCTION | Backend must set CSP, X-Frame-Options, etc. |
 
 **Recommended Headers (Backend)**:
