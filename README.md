@@ -9,7 +9,7 @@
 [![Documentation](https://img.shields.io/badge/Docs-2800%2B%20lines-blue)](./docs/)
 [![Security Audit](https://img.shields.io/badge/Security-ASVS%20L2-success)](./docs/SECURITY_AUDIT_FASE_5.md)
 
-> **📍 Status Progetto (v0.8.0)**: ✅ **100% Production Ready** — Full-stack completo (Backend + Frontend) con zero-cost Kubernetes deployment. **Backend**: Rust Engine + Python Worker + PHP Gateway (7 servizi, 100% funzionanti). **Frontend**: React 18 SPA completa (2,172 LoC, 13 componenti, 6 pagine). **Deployment**: Oracle Cloud Free Tier automation (€0/mese). **Documentation**: 2,800+ lines + guide deployment. Sistema pronto per vendita/produzione immediata.
+> **📍 Status Progetto (v0.9.0-dev)**: 🔨 **In Stabilization** — Stack infrastructure production-ready (9/9 containers up, health OK). Test suites mostly green (Rust 135/135 lib, PHP 69/69, Frontend 53/53). Remaining work: quality polish (coverage 80%, lint cleanup, integration tests in CI). See [PIANO_OPERATIVO_2026-05-25.md](./docs/PIANO_OPERATIVO_2026-05-25.md) and [STATUS.md](./STATUS.md) for details.
 
 ---
 
